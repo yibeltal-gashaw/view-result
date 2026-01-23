@@ -2,6 +2,9 @@ require("dotenv").config();
 const { Telegraf } = require("telegraf");
 const mongoose = require("mongoose");
 const path = require("path");
+const express = require("express");
+const app = express();
+
 
 const imagePath = path.join(__dirname, "public", "img.png");
 const maleImagePath = path.join(__dirname, "public", "male.png");
@@ -16,6 +19,16 @@ mongoose
   });
 
 const Student = require("./model/student.model");
+
+app.get("/", (req, res) => {
+  res.send("Telegram bot is running 🚀");
+});
+
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`HTTP server listening on port ${PORT}`);
+});
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.start(async (ctx) => {

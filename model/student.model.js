@@ -7,9 +7,10 @@ const studentSchema = new mongoose.Schema({
   "mid exam": Number,
   "quiz": Number,
   "lab": Number,
-  "poject": Number,
+  "project": Number,
   "final exam": Number,
-  "total": Number
+  "total": Number,
+  "grade": String
 }, { collection: 'students' });
 
 const Student = mongoose.model('Student', studentSchema);

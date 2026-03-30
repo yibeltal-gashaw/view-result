@@ -4,6 +4,7 @@ const { createBot } = require("./bot/createBot");
 const { connectToDatabase } = require("./config/database");
 const corsMiddleware = require("./middleware/cors");
 const resultRoutes = require("./routes/resultRoutes");
+const cors = require("cors");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,10 +14,17 @@ async function startServer() {
   await connectToDatabase();
 
   app.use(express.json());
-  app.use(corsMiddleware);
+  app.use(
+    cors({
+      origin: "https://mau-examresult.netlify.app",
+      methods: ["GET", "POST", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "ngrok-skip-browser-warning"],
+      credentials: true,
+    }),
+  );
   app.use(resultRoutes);
 
-  app.listen(PORT, () => {
+  app.listen(PORT, "0.0.0.0", () => {
     console.log(`HTTP server listening on port ${PORT}`);
   });
 

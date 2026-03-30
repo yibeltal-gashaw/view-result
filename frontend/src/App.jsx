@@ -24,8 +24,12 @@ function App() {
   const [inputValue, setInputValue] = useState(() => getStudentIdFromQuery());
   const [selectedYear, setSelectedYear] = useState(() => getYearFromQuery());
   const [submittedYear, setSubmittedYear] = useState(() => getYearFromQuery());
-  const [selectedCourse, setSelectedCourse] = useState(() => getCourseFromQuery());
-  const [submittedCourse, setSubmittedCourse] = useState(() => getCourseFromQuery());
+  const [selectedCourse, setSelectedCourse] = useState(() =>
+    getCourseFromQuery(),
+  );
+  const [submittedCourse, setSubmittedCourse] = useState(() =>
+    getCourseFromQuery(),
+  );
   const [result, setResult] = useState(null);
   const [status, setStatus] = useState(studentId ? "loading" : "idle");
   const [error, setError] = useState("");
@@ -62,6 +66,13 @@ function App() {
       try {
         const response = await fetch(
           getResultEndpoint(studentId, submittedYear, submittedCourse),
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              "ngrok-skip-browser-warning": "true",
+            },
+          },
         );
         const data = await readApiResponse(response);
 

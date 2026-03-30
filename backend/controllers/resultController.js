@@ -9,6 +9,7 @@ async function getStudentResult(req, res) {
   const studentId = normalizeStudentId(req.params.studentId);
   const year = normalizeOptionalText(req.query.year);
   const course = normalizeOptionalText(req.query.course);
+  console.log(`Received request for student ID: ${studentId}, year: ${year}, course: ${course}`);
 
   if (!studentId || studentId.length < 5) {
     return res.status(400).json({

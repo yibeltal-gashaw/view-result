@@ -1,11 +1,11 @@
-import { subjectOptions, yearOptions } from "../config/resultOptions";
+import { courseOptions, yearOptions } from "../config/resultOptions";
 
 function ResultSearchForm({
   inputValue,
-  selectedSubject,
+  selectedCourse,
   selectedYear,
   onInputChange,
-  onSubjectChange,
+  onCourseChange,
   onSubmit,
   onYearChange,
 }) {
@@ -21,24 +21,24 @@ function ResultSearchForm({
         onChange={(event) => onYearChange(event.target.value)}
       >
         {yearOptions.map((year) => (
-          <option key={year} value={year}>
-            {year}
+          <option key={year.value} value={year.value}>
+            {year.label}
           </option>
         ))}
       </select>
 
-      <label className="search-label" htmlFor="subject-select">
-        Subject
+      <label className="search-label" htmlFor="course-select">
+        Course
       </label>
       <select
-        id="subject-select"
+        id="course-select"
         className="search-input"
-        value={selectedSubject}
-        onChange={(event) => onSubjectChange(event.target.value)}
+        value={selectedCourse}
+        onChange={(event) => onCourseChange(event.target.value)}
       >
-        {subjectOptions.map((subject) => (
-          <option key={subject} value={subject}>
-            {subject}
+        {courseOptions.map((course) => (
+          <option key={course.value} value={course.value}>
+            {course.label}
           </option>
         ))}
       </select>

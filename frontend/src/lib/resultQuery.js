@@ -1,4 +1,4 @@
-import { subjectOptions, yearOptions } from "../config/resultOptions";
+import { courseMap, yearMap } from "../config/resultOptions";
 
 export function getStudentIdFromQuery() {
   const params = new URLSearchParams(window.location.search);
@@ -9,26 +9,26 @@ export function getYearFromQuery() {
   const params = new URLSearchParams(window.location.search);
   const requestedYear = (params.get("year") || "").trim();
 
-  return yearOptions.includes(requestedYear) ? requestedYear : yearOptions[0];
+  return yearMap[requestedYear] ? requestedYear : Object.keys(yearMap)[0];
 }
 
-export function getSubjectFromQuery() {
+export function getCourseFromQuery() {
   const params = new URLSearchParams(window.location.search);
-  const requestedSubject = (params.get("subject") || "").trim();
+  const requestedCourse = (params.get("course") || "").trim();
 
-  return subjectOptions.includes(requestedSubject)
-    ? requestedSubject
-    : subjectOptions[0];
+  return courseMap[requestedCourse]
+    ? requestedCourse
+    : Object.keys(courseMap)[0];
 }
 
 export function normalizeStudentId(value) {
   return value.trim().toUpperCase();
 }
 
-export function updateSearchParams({ studentId, year, subject }) {
+export function updateSearchParams({ studentId, year, course }) {
   const nextUrl = new URL(window.location.href);
   nextUrl.searchParams.set("studentId", studentId);
   nextUrl.searchParams.set("year", year);
-  nextUrl.searchParams.set("subject", subject);
+  nextUrl.searchParams.set("course", course);
   window.history.replaceState({}, "", nextUrl);
 }

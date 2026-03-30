@@ -1,7 +1,7 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "";
 
-export function getResultEndpoint(studentId, year, subject) {
+export function getResultEndpoint(studentId, year, course) {
   const endpoint = new URL(
     `${API_BASE_URL}/api/results/${encodeURIComponent(studentId)}`,
     window.location.origin,
@@ -11,8 +11,8 @@ export function getResultEndpoint(studentId, year, subject) {
     endpoint.searchParams.set("year", year);
   }
 
-  if (subject) {
-    endpoint.searchParams.set("subject", subject);
+  if (course) {
+    endpoint.searchParams.set("course", course);
   }
 
   const queryString = endpoint.searchParams.toString();

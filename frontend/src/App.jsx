@@ -3,11 +3,15 @@ import "./App.css";
 import male from "./assets/male.png";
 import female from "./assets/female.png";
 import ResultSearchForm from "./components/ResultSearchForm";
-import { scoreItems } from "./config/resultOptions";
+import {
+  getCourseLabel,
+  getYearLabel,
+  scoreItems,
+} from "./config/resultOptions";
 import { getResultEndpoint, readApiResponse } from "./lib/resultApi";
 import {
+  getCourseFromQuery,
   getStudentIdFromQuery,
-  getSubjectFromQuery,
   getYearFromQuery,
   normalizeStudentId,
   updateSearchParams,
@@ -20,8 +24,8 @@ function App() {
   const [inputValue, setInputValue] = useState(() => getStudentIdFromQuery());
   const [selectedYear, setSelectedYear] = useState(() => getYearFromQuery());
   const [submittedYear, setSubmittedYear] = useState(() => getYearFromQuery());
-  const [selectedSubject, setSelectedSubject] = useState(() => getSubjectFromQuery());
-  const [submittedSubject, setSubmittedSubject] = useState(() => getSubjectFromQuery());
+  const [selectedCourse, setSelectedCourse] = useState(() => getCourseFromQuery());
+  const [submittedCourse, setSubmittedCourse] = useState(() => getCourseFromQuery());
   const [result, setResult] = useState(null);
   const [status, setStatus] = useState(studentId ? "loading" : "idle");
   const [error, setError] = useState("");
@@ -43,7 +47,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!studentId || !submittedYear || !submittedSubject) {
+    if (!studentId || !submittedYear || !submittedCourse) {
       setStatus("idle");
       return;
     }
@@ -57,7 +61,7 @@ function App() {
 
       try {
         const response = await fetch(
-          getResultEndpoint(studentId, submittedYear, submittedSubject),
+          getResultEndpoint(studentId, submittedYear, submittedCourse),
         );
         const data = await readApiResponse(response);
 
@@ -82,7 +86,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [studentId, submittedYear, submittedSubject]);
+  }, [studentId, submittedYear, submittedCourse]);
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -103,9 +107,9 @@ function App() {
       return;
     }
 
-    if (!selectedSubject) {
+    if (!selectedCourse) {
       setResult(null);
-      setError("Please select a subject.");
+      setError("Please select a course.");
       setStatus("error");
       return;
     }
@@ -113,12 +117,12 @@ function App() {
     updateSearchParams({
       studentId: normalizedId,
       year: selectedYear,
-      subject: selectedSubject,
+      course: selectedCourse,
     });
 
     setStudentId(normalizedId);
     setSubmittedYear(selectedYear);
-    setSubmittedSubject(selectedSubject);
+    setSubmittedCourse(selectedCourse);
   }
 
   return (
@@ -149,10 +153,10 @@ function App() {
 
         <ResultSearchForm
           inputValue={inputValue}
-          selectedSubject={selectedSubject}
+          selectedCourse={selectedCourse}
           selectedYear={selectedYear}
           onInputChange={(value) => setInputValue(normalizeStudentId(value))}
-          onSubjectChange={setSelectedSubject}
+          onCourseChange={setSelectedCourse}
           onSubmit={handleSubmit}
           onYearChange={setSelectedYear}
         />
@@ -162,7 +166,7 @@ function App() {
         <section className="panel empty-state">
           <h2>No student selected</h2>
           <p>
-            Choose your year, select a subject, and enter your Student ID to
+            Choose your year, select your course, and enter your Student ID to
             load your result.
           </p>
         </section>
@@ -199,8 +203,10 @@ function App() {
               <p className="section-label">Student</p>
               <h2>{result.fullName}</h2>
               <p className="muted-text">
-                {result.course || result.subject || submittedSubject}
-                {submittedYear ? ` | ${result.year || submittedYear}` : ""}
+                {result.course || getCourseLabel(submittedCourse)}
+                {submittedYear
+                  ? ` | ${result.year || getYearLabel(submittedYear)}`
+                  : ""}
               </p>
             </div>
             <div className="profile-meta">

@@ -9,8 +9,20 @@ const app = express();
 const imagePath = path.join(__dirname, "public", "img.png");
 const maleImagePath = path.join(__dirname, "public", "male.png");
 const femaleImagePath = path.join(__dirname, "public", "female.png");
-const courseName = "Fundamentals of Software Security";
+const COURSE_MAP = {
+  fss: "Fundamentals of Software Security",
+};
+const YEAR_MAP = {
+  1: "Year 1",
+  2: "Year 2",
+  3: "Year 3",
+  4: "Year 4",
+  5: "Year 5",
+};
+const courseName = COURSE_MAP.fss;
 const webAppUrl = process.env.WEB_APP_URL?.trim();
+const YEAR_FIELDS = ["Year", "year"];
+const COURSE_FIELDS = ["Course", "course"];
 
 mongoose
   .connect(process.env.MONGO_URI)
@@ -26,18 +38,88 @@ function normalizeStudentId(value = "") {
   return value.trim().toUpperCase();
 }
 
-async function findStudent(studentId) {
-  return Student.findOne({ "Student ID": studentId }).lean();
+function normalizeOptionalText(value = "") {
+  return String(value).trim();
 }
 
-function formatStudentResult(student) {
+function resolveMappedValue(value, valueMap) {
+  const normalizedValue = normalizeOptionalText(value);
+
+  return valueMap[normalizedValue] || normalizedValue;
+}
+
+function getCandidateValues(value, valueMap) {
+  const normalizedValue = normalizeOptionalText(value);
+
+  if (!normalizedValue) {
+    return [];
+  }
+
+  const mappedValue = valueMap[normalizedValue];
+
+  return mappedValue && mappedValue !== normalizedValue
+    ? [normalizedValue, mappedValue]
+    : [normalizedValue];
+}
+
+function getStudentField(student, fieldNames, fallback = "") {
+  for (const fieldName of fieldNames) {
+    const value = normalizeOptionalText(student[fieldName]);
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return fallback;
+}
+
+function buildFieldMatch(fieldNames, value) {
+  const values = Array.isArray(value) ? value : [value];
+
+  return {
+    $or: fieldNames.flatMap((fieldName) =>
+      values.map((candidateValue) => ({ [fieldName]: candidateValue })),
+    ),
+  };
+}
+
+async function findStudent(studentId, options = {}) {
+  const yearCandidates = getCandidateValues(options.year, YEAR_MAP);
+  const courseCandidates = getCandidateValues(options.course, COURSE_MAP);
+  const query = { $and: [{ "Student ID": studentId }] };
+
+  if (yearCandidates.length > 0) {
+    query.$and.push(buildFieldMatch(YEAR_FIELDS, yearCandidates));
+  }
+
+  if (courseCandidates.length > 0) {
+    query.$and.push(buildFieldMatch(COURSE_FIELDS, courseCandidates));
+  }
+
+  return Student.findOne(query).lean();
+}
+
+function formatStudentResult(student, options = {}) {
+  const requestedYear = resolveMappedValue(options.year, YEAR_MAP);
+  const requestedCourse = resolveMappedValue(options.course, COURSE_MAP);
+  const storedYear = getStudentField(student, YEAR_FIELDS, requestedYear);
+  const storedCourse = getStudentField(
+    student,
+    COURSE_FIELDS,
+    requestedCourse || courseName,
+  );
+  const year = resolveMappedValue(storedYear, YEAR_MAP);
+  const course = resolveMappedValue(storedCourse, COURSE_MAP);
+
   return {
     studentId: student["Student ID"],
     firstName: student["First Name"],
     fatherName: student["Father Name"],
     fullName: `${student["First Name"]} ${student["Father Name"]}`.trim(),
     sex: student["Sex"],
-    course: courseName,
+    course,
+    year,
     grade: student["grade"],
     total: student["total"],
     breakdown: {
@@ -70,6 +152,8 @@ app.get("/", (req, res) => {
 
 app.get("/api/results/:studentId", async (req, res) => {
   const studentId = normalizeStudentId(req.params.studentId);
+  const year = normalizeOptionalText(req.query.year);
+  const course = normalizeOptionalText(req.query.course);
 
   if (!studentId || studentId.length < 5) {
     return res.status(400).json({
@@ -77,16 +161,28 @@ app.get("/api/results/:studentId", async (req, res) => {
     });
   }
 
+  if (!year) {
+    return res.status(400).json({
+      message: "Please provide a year.",
+    });
+  }
+
+  if (!course) {
+    return res.status(400).json({
+      message: "Please provide a course.",
+    });
+  }
+
   try {
-    const student = await findStudent(studentId);
+    const student = await findStudent(studentId, { year, course });
 
     if (!student) {
       return res.status(404).json({
-        message: "Student not found.",
+        message: "Student result not found for the selected year and course.",
       });
     }
 
-    return res.json(formatStudentResult(student));
+    return res.json(formatStudentResult(student, { year, course }));
   } catch (error) {
     console.error("Result API error:", error);
     return res.status(500).json({

@@ -147,6 +147,11 @@ body {
   outline: none;
 }
 
+.search-input:is(select) {
+  appearance: none;
+  cursor: pointer;
+}
+
 .search-input::placeholder {
   color: #64748b;
 }

@@ -6,6 +6,19 @@ import female from "./assets/female.png";
 const TELEGRAM = window.Telegram?.WebApp;
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "";
+const defaultCourseOptions = ["Fundamentals of Software Security"];
+const courseOptions = [
+  ...new Set(
+    (import.meta.env.VITE_COURSE_OPTIONS || "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean),
+  ),
+];
+
+if (courseOptions.length === 0) {
+  courseOptions.push(...defaultCourseOptions);
+}
 
 const scoreItems = [
   { key: "midExam", label: "Mid Exam" },
@@ -20,12 +33,35 @@ function getStudentIdFromQuery() {
   return (params.get("studentId") || "").trim().toUpperCase();
 }
 
+function getCourseFromQuery() {
+  const params = new URLSearchParams(window.location.search);
+  const requestedCourse = (params.get("course") || "").trim();
+
+  return courseOptions.includes(requestedCourse)
+    ? requestedCourse
+    : courseOptions[0];
+}
+
 function normalizeStudentId(value) {
   return value.trim().toUpperCase();
 }
 
-function getResultEndpoint(studentId) {
-  return `${API_BASE_URL}/api/results/${encodeURIComponent(studentId)}`;
+function getResultEndpoint(studentId, course) {
+  const endpoint = new URL(
+    `${API_BASE_URL}/api/results/${encodeURIComponent(studentId)}`,
+    window.location.origin,
+  );
+
+  if (course) {
+    endpoint.searchParams.set("course", course);
+  }
+
+  const queryString = endpoint.searchParams.toString();
+  const basePath = API_BASE_URL
+    ? `${API_BASE_URL}/api/results/${encodeURIComponent(studentId)}`
+    : endpoint.pathname;
+
+  return queryString ? `${basePath}?${queryString}` : basePath;
 }
 
 async function readApiResponse(response) {
@@ -64,6 +100,8 @@ async function readApiResponse(response) {
 function App() {
   const [studentId, setStudentId] = useState(() => getStudentIdFromQuery());
   const [inputValue, setInputValue] = useState(() => getStudentIdFromQuery());
+  const [selectedCourse, setSelectedCourse] = useState(() => getCourseFromQuery());
+  const [submittedCourse, setSubmittedCourse] = useState(() => getCourseFromQuery());
   const [result, setResult] = useState(null);
   const [status, setStatus] = useState(studentId ? "loading" : "idle");
   const [error, setError] = useState("");
@@ -85,7 +123,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!studentId) {
+    if (!studentId || !submittedCourse) {
       setStatus("idle");
       return;
     }
@@ -98,7 +136,7 @@ function App() {
       setResult(null);
 
       try {
-        const response = await fetch(getResultEndpoint(studentId));
+        const response = await fetch(getResultEndpoint(studentId, submittedCourse));
         const data = await readApiResponse(response);
 
         if (cancelled) {
@@ -122,7 +160,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [studentId]);
+  }, [studentId, submittedCourse]);
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -136,11 +174,20 @@ function App() {
       return;
     }
 
+    if (!selectedCourse) {
+      setResult(null);
+      setError("Please select a course.");
+      setStatus("error");
+      return;
+    }
+
     const nextUrl = new URL(window.location.href);
     nextUrl.searchParams.set("studentId", normalizedId);
+    nextUrl.searchParams.set("course", selectedCourse);
     window.history.replaceState({}, "", nextUrl);
 
     setStudentId(normalizedId);
+    setSubmittedCourse(selectedCourse);
   }
 
   return (
@@ -170,6 +217,25 @@ function App() {
         </div>
 
         <form className="search-form" onSubmit={handleSubmit}>
+          <label className="search-label" htmlFor="course-select">
+            Course
+          </label>
+          <select
+            id="course-select"
+            className="search-input"
+            value={selectedCourse}
+            onChange={(event) => setSelectedCourse(event.target.value)}
+          >
+            {courseOptions.map((course) => (
+              <option key={course} value={course}>
+                {course}
+              </option>
+            ))}
+          </select>
+
+          <label className="search-label" htmlFor="student-id">
+            Student ID
+          </label>
           <div className="search-input-group">
             <input
               id="student-id"
@@ -229,7 +295,7 @@ function App() {
             <div>
               <p className="section-label">Student</p>
               <h2>{result.fullName}</h2>
-              <p className="muted-text">{result.course}</p>
+              <p className="muted-text">{result.course || submittedCourse}</p>
             </div>
             <div className="profile-meta">
               <div className="meta-chip">

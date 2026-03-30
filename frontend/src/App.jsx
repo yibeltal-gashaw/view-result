@@ -2,106 +2,26 @@ import { useEffect, useState } from "react";
 import "./App.css";
 import male from "./assets/male.png";
 import female from "./assets/female.png";
+import ResultSearchForm from "./components/ResultSearchForm";
+import { scoreItems } from "./config/resultOptions";
+import { getResultEndpoint, readApiResponse } from "./lib/resultApi";
+import {
+  getStudentIdFromQuery,
+  getSubjectFromQuery,
+  getYearFromQuery,
+  normalizeStudentId,
+  updateSearchParams,
+} from "./lib/resultQuery";
 
 const TELEGRAM = window.Telegram?.WebApp;
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "";
-const defaultCourseOptions = ["Fundamentals of Software Security"];
-const courseOptions = [
-  ...new Set(
-    (import.meta.env.VITE_COURSE_OPTIONS || "")
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean),
-  ),
-];
-
-if (courseOptions.length === 0) {
-  courseOptions.push(...defaultCourseOptions);
-}
-
-const scoreItems = [
-  { key: "midExam", label: "Mid Exam" },
-  { key: "quiz", label: "Quiz" },
-  { key: "lab", label: "Lab" },
-  { key: "project", label: "Project" },
-  { key: "finalExam", label: "Final Exam" },
-];
-
-function getStudentIdFromQuery() {
-  const params = new URLSearchParams(window.location.search);
-  return (params.get("studentId") || "").trim().toUpperCase();
-}
-
-function getCourseFromQuery() {
-  const params = new URLSearchParams(window.location.search);
-  const requestedCourse = (params.get("course") || "").trim();
-
-  return courseOptions.includes(requestedCourse)
-    ? requestedCourse
-    : courseOptions[0];
-}
-
-function normalizeStudentId(value) {
-  return value.trim().toUpperCase();
-}
-
-function getResultEndpoint(studentId, course) {
-  const endpoint = new URL(
-    `${API_BASE_URL}/api/results/${encodeURIComponent(studentId)}`,
-    window.location.origin,
-  );
-
-  if (course) {
-    endpoint.searchParams.set("course", course);
-  }
-
-  const queryString = endpoint.searchParams.toString();
-  const basePath = API_BASE_URL
-    ? `${API_BASE_URL}/api/results/${encodeURIComponent(studentId)}`
-    : endpoint.pathname;
-
-  return queryString ? `${basePath}?${queryString}` : basePath;
-}
-
-async function readApiResponse(response) {
-  const rawText = await response.text();
-  const contentType = response.headers.get("content-type") || "";
-  const looksLikeJson =
-    contentType.includes("application/json") ||
-    rawText.trim().startsWith("{") ||
-    rawText.trim().startsWith("[");
-
-  let data = null;
-
-  if (looksLikeJson && rawText) {
-    try {
-      data = JSON.parse(rawText);
-    } catch {
-      data = null;
-    }
-  }
-
-  if (!response.ok) {
-    throw new Error(data?.message || "Unable to load result.");
-  }
-
-  if (!data) {
-    throw new Error(
-      API_BASE_URL
-        ? "The result service returned an invalid response."
-        : "The mini app is not connected to the backend. Set VITE_API_BASE_URL to your API server.",
-    );
-  }
-
-  return data;
-}
 
 function App() {
   const [studentId, setStudentId] = useState(() => getStudentIdFromQuery());
   const [inputValue, setInputValue] = useState(() => getStudentIdFromQuery());
-  const [selectedCourse, setSelectedCourse] = useState(() => getCourseFromQuery());
-  const [submittedCourse, setSubmittedCourse] = useState(() => getCourseFromQuery());
+  const [selectedYear, setSelectedYear] = useState(() => getYearFromQuery());
+  const [submittedYear, setSubmittedYear] = useState(() => getYearFromQuery());
+  const [selectedSubject, setSelectedSubject] = useState(() => getSubjectFromQuery());
+  const [submittedSubject, setSubmittedSubject] = useState(() => getSubjectFromQuery());
   const [result, setResult] = useState(null);
   const [status, setStatus] = useState(studentId ? "loading" : "idle");
   const [error, setError] = useState("");
@@ -123,7 +43,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!studentId || !submittedCourse) {
+    if (!studentId || !submittedYear || !submittedSubject) {
       setStatus("idle");
       return;
     }
@@ -136,7 +56,9 @@ function App() {
       setResult(null);
 
       try {
-        const response = await fetch(getResultEndpoint(studentId, submittedCourse));
+        const response = await fetch(
+          getResultEndpoint(studentId, submittedYear, submittedSubject),
+        );
         const data = await readApiResponse(response);
 
         if (cancelled) {
@@ -160,7 +82,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [studentId, submittedCourse]);
+  }, [studentId, submittedYear, submittedSubject]);
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -174,20 +96,29 @@ function App() {
       return;
     }
 
-    if (!selectedCourse) {
+    if (!selectedYear) {
       setResult(null);
-      setError("Please select a course.");
+      setError("Please select your year.");
       setStatus("error");
       return;
     }
 
-    const nextUrl = new URL(window.location.href);
-    nextUrl.searchParams.set("studentId", normalizedId);
-    nextUrl.searchParams.set("course", selectedCourse);
-    window.history.replaceState({}, "", nextUrl);
+    if (!selectedSubject) {
+      setResult(null);
+      setError("Please select a subject.");
+      setStatus("error");
+      return;
+    }
+
+    updateSearchParams({
+      studentId: normalizedId,
+      year: selectedYear,
+      subject: selectedSubject,
+    });
 
     setStudentId(normalizedId);
-    setSubmittedCourse(selectedCourse);
+    setSubmittedYear(selectedYear);
+    setSubmittedSubject(selectedSubject);
   }
 
   return (
@@ -216,52 +147,24 @@ function App() {
           <h2>Enter your ID</h2>
         </div>
 
-        <form className="search-form" onSubmit={handleSubmit}>
-          <label className="search-label" htmlFor="course-select">
-            Course
-          </label>
-          <select
-            id="course-select"
-            className="search-input"
-            value={selectedCourse}
-            onChange={(event) => setSelectedCourse(event.target.value)}
-          >
-            {courseOptions.map((course) => (
-              <option key={course} value={course}>
-                {course}
-              </option>
-            ))}
-          </select>
-
-          <label className="search-label" htmlFor="student-id">
-            Student ID
-          </label>
-          <div className="search-input-group">
-            <input
-              id="student-id"
-              className="search-input"
-              type="text"
-              inputMode="text"
-              autoCapitalize="characters"
-              autoCorrect="off"
-              spellCheck="false"
-              placeholder="MAU1602154"
-              value={inputValue}
-              onChange={(event) =>
-                setInputValue(normalizeStudentId(event.target.value))
-              }
-            />
-            <button className="search-button" type="submit">
-              View Result
-            </button>
-          </div>
-        </form>
+        <ResultSearchForm
+          inputValue={inputValue}
+          selectedSubject={selectedSubject}
+          selectedYear={selectedYear}
+          onInputChange={(value) => setInputValue(normalizeStudentId(value))}
+          onSubjectChange={setSelectedSubject}
+          onSubmit={handleSubmit}
+          onYearChange={setSelectedYear}
+        />
       </section>
 
       {status === "idle" && (
         <section className="panel empty-state">
           <h2>No student selected</h2>
-          <p>Enter your Student ID above to load your result.</p>
+          <p>
+            Choose your year, select a subject, and enter your Student ID to
+            load your result.
+          </p>
         </section>
       )}
 
@@ -295,7 +198,10 @@ function App() {
             <div>
               <p className="section-label">Student</p>
               <h2>{result.fullName}</h2>
-              <p className="muted-text">{result.course || submittedCourse}</p>
+              <p className="muted-text">
+                {result.course || result.subject || submittedSubject}
+                {submittedYear ? ` | ${result.year || submittedYear}` : ""}
+              </p>
             </div>
             <div className="profile-meta">
               <div className="meta-chip">

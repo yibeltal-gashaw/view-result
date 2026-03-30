@@ -10,14 +10,22 @@ const YEAR_MAP = {
   5: "Year 5",
 };
 
-const YEAR_FIELDS = ["Year", "year"];
-const COURSE_FIELDS = ["Course", "course"];
+const YEAR_CODE_FIELDS = ["year"];
+const YEAR_LABEL_FIELDS = ["Year"];
+const COURSE_CODE_FIELDS = ["course"];
+const COURSE_LABEL_FIELDS = ["Course"];
+const YEAR_FIELDS = [...YEAR_CODE_FIELDS, ...YEAR_LABEL_FIELDS];
+const COURSE_FIELDS = [...COURSE_CODE_FIELDS, ...COURSE_LABEL_FIELDS];
 const DEFAULT_COURSE_NAME = COURSE_MAP.fss;
 
 module.exports = {
+  COURSE_CODE_FIELDS,
   COURSE_FIELDS,
+  COURSE_LABEL_FIELDS,
   COURSE_MAP,
   DEFAULT_COURSE_NAME,
+  YEAR_CODE_FIELDS,
   YEAR_FIELDS,
+  YEAR_LABEL_FIELDS,
   YEAR_MAP,
 };

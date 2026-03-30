@@ -148,7 +148,6 @@ function App() {
       <section className="panel search-panel">
         <div className="search-copy">
           <p className="section-label">Search Result</p>
-          <h2>Enter your ID</h2>
         </div>
 
         <ResultSearchForm

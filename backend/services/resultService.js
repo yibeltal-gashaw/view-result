@@ -6,27 +6,17 @@ const {
   YEAR_FIELDS,
   YEAR_MAP,
 } = require("../config/resultOptions");
-const {
-  buildFieldMatch,
-  getCandidateValues,
-  getStudentField,
-  resolveMappedValue,
-} = require("../utils/resultFilters");
+const { getStudentField, resolveMappedValue } = require("../utils/resultFilters");
 
 async function findStudent(studentId, options = {}) {
-  const yearCandidates = getCandidateValues(options.year, YEAR_MAP);
-  const courseCandidates = getCandidateValues(options.course, COURSE_MAP);
-  const query = { $and: [{ "Student ID": studentId }] };
+  const normalizedYear = Number(options.year);
+  const normalizedCourse = String(options.course || "").trim().toLowerCase();
 
-  if (yearCandidates.length > 0) {
-    query.$and.push(buildFieldMatch(YEAR_FIELDS, yearCandidates));
-  }
-
-  if (courseCandidates.length > 0) {
-    query.$and.push(buildFieldMatch(COURSE_FIELDS, courseCandidates));
-  }
-
-  return Student.findOne(query).lean();
+  return Student.findOne({
+    "Student ID": studentId,
+    course: normalizedCourse,
+    year: normalizedYear,
+  }).lean();
 }
 
 function formatStudentResult(student, options = {}) {

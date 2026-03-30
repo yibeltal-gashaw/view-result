@@ -9,7 +9,7 @@ export function getYearFromQuery() {
   const params = new URLSearchParams(window.location.search);
   const requestedYear = (params.get("year") || "").trim();
 
-  return yearMap[requestedYear] ? requestedYear : Object.keys(yearMap)[0];
+  return yearMap[requestedYear] ? requestedYear : Object.keys(yearMap)[2];
 }
 
 export function getCourseFromQuery() {

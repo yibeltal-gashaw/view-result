@@ -6,6 +6,20 @@ function resolveMappedValue(value, valueMap) {
   return valueMap[normalizedValue] || normalizedValue;
 }
 
+function appendNumericCandidate(values, value) {
+  const normalizedValue = normalizeOptionalText(value);
+
+  if (!normalizedValue) {
+    return;
+  }
+
+  const numericValue = Number(normalizedValue);
+
+  if (Number.isFinite(numericValue) && !values.includes(numericValue)) {
+    values.push(numericValue);
+  }
+}
+
 function getCandidateValues(value, valueMap) {
   const normalizedValue = normalizeOptionalText(value);
 
@@ -14,10 +28,15 @@ function getCandidateValues(value, valueMap) {
   }
 
   const mappedValue = valueMap[normalizedValue];
+  const values =
+    mappedValue && mappedValue !== normalizedValue
+      ? [normalizedValue, mappedValue]
+      : [normalizedValue];
 
-  return mappedValue && mappedValue !== normalizedValue
-    ? [normalizedValue, mappedValue]
-    : [normalizedValue];
+  appendNumericCandidate(values, normalizedValue);
+  appendNumericCandidate(values, mappedValue);
+
+  return values;
 }
 
 function getStudentField(student, fieldNames, fallback = "") {

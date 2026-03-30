@@ -4,7 +4,7 @@ const studentSchema = new mongoose.Schema({
   "First Name": String,
   "Father Name": String,
   "Sex": String,
-  "year": String,
+  "year": Number,
   "course": String,
   "mid exam": Number,
   "quiz": Number,

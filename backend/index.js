@@ -17,6 +17,7 @@ async function startServer() {
   app.use(
     cors({
       origin: "https://mau-examresult.netlify.app",
+      // origin: "http://localhost:5173",
       methods: ["GET", "POST", "OPTIONS"],
       allowedHeaders: ["Content-Type", "ngrok-skip-browser-warning"],
       credentials: true,

@@ -11,6 +11,10 @@ const studentSchema = new mongoose.Schema({
   "lab": Number,
   "project": Number,
   "final exam": Number,
+  assessments: {
+    type: Map,
+    of: Number,
+  },
   "total": Number,
   "grade": String
 }, { collection: 'students' });

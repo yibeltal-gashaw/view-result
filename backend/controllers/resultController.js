@@ -78,7 +78,6 @@ async function uploadTeacherResults(req, res) {
 
 async function login(req, res) {
   try {
-    console.log("Login request body:", req.body);
     const result = await loginUser(req.body);
     return res.status(result.status).json(result.body);
   } catch (error) {

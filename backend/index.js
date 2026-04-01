@@ -16,10 +16,12 @@ async function startServer() {
   app.use(express.json());
   app.use(
     cors({
-      origin: "https://mau-examresult.netlify.app",
-      // origin: "http://localhost:5173",
+      origin: [
+        "https://mau-examresult.netlify.app",
+        "http://localhost:5173",
+      ],
       methods: ["GET", "POST", "OPTIONS"],
-      allowedHeaders: ["Content-Type"],
+      allowedHeaders: ["Content-Type", "x-teacher-token"],
       credentials: true,
     }),
   );

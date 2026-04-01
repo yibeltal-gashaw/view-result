@@ -1,4 +1,5 @@
 const { findStudent, formatStudentResult } = require("../services/resultService");
+const { uploadCourseResults } = require("../services/uploadService");
 const { normalizeOptionalText, normalizeStudentId } = require("../utils/text");
 
 function getHealth(req, res) {
@@ -47,7 +48,20 @@ async function getStudentResult(req, res) {
   }
 }
 
+async function uploadTeacherResults(req, res) {
+  try {
+    const result = await uploadCourseResults(req.body);
+    return res.status(result.status).json(result.body);
+  } catch (error) {
+    console.error("Teacher upload API error:", error);
+    return res.status(500).json({
+      message: "Unable to upload course results right now.",
+    });
+  }
+}
+
 module.exports = {
   getHealth,
   getStudentResult,
+  uploadTeacherResults,
 };

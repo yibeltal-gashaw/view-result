@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { uploadTeacherResults } from "../lib/teacherUploadApi";
 
 const SAMPLE_HEADERS = [
   "Student ID",
@@ -33,22 +34,65 @@ const SAMPLE_ROW = [
   "A",
 ];
 
+const REQUIRED_HEADERS = ["Student ID", "total"];
+const RESERVED_HEADERS = new Set([
+  "Student ID",
+  "First Name",
+  "Father Name",
+  "Sex",
+  "year",
+  "Year",
+  "course",
+  "Course",
+  "total",
+  "grade",
+]);
+
 function TeacherDashboardPage() {
   const [fileName, setFileName] = useState("");
   const [headers, setHeaders] = useState([]);
   const [rows, setRows] = useState([]);
+  const [teacherToken, setTeacherToken] = useState("");
+  const [defaultCourse, setDefaultCourse] = useState("");
+  const [defaultYear, setDefaultYear] = useState("");
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [uploadStatus, setUploadStatus] = useState("idle");
 
   const previewRows = useMemo(() => rows.slice(0, 8), [rows]);
-  const requiredHeaders = useMemo(
-    () => ["Student ID", "year", "course", "total", "grade"],
-    [],
-  );
   const missingHeaders = useMemo(
-    () => requiredHeaders.filter((header) => !headers.includes(header)),
-    [headers, requiredHeaders],
+    () => REQUIRED_HEADERS.filter((header) => !headers.includes(header)),
+    [headers],
   );
+  const assessmentHeaders = useMemo(
+    () => headers.filter((header) => !RESERVED_HEADERS.has(header)),
+    [headers],
+  );
+  const resolvedCourse = useMemo(
+    () => String(defaultCourse || inferSharedValue(rows, ["course", "Course"])).trim().toLowerCase(),
+    [defaultCourse, rows],
+  );
+  const resolvedYear = useMemo(
+    () => String(defaultYear || inferSharedValue(rows, ["year", "Year"])).trim(),
+    [defaultYear, rows],
+  );
+  const payloadPreview = useMemo(
+    () =>
+      buildUploadPayload({
+        rows,
+        course: resolvedCourse,
+        year: resolvedYear,
+      }),
+    [rows, resolvedCourse, resolvedYear],
+  );
+  const canValidate = rows.length > 0;
+  const canUpload =
+    canValidate &&
+    missingHeaders.length === 0 &&
+    assessmentHeaders.length > 0 &&
+    Boolean(resolvedCourse) &&
+    Boolean(resolvedYear) &&
+    Boolean(teacherToken.trim());
 
   async function handleFileChange(event) {
     const [file] = Array.from(event.target.files || []);
@@ -59,6 +103,7 @@ function TeacherDashboardPage() {
 
     setUploadStatus("reading");
     setError("");
+    setSuccessMessage("");
     setFileName(file.name);
 
     try {
@@ -71,10 +116,14 @@ function TeacherDashboardPage() {
 
       setHeaders(parsedHeaders);
       setRows(parsedRows);
+      setDefaultCourse(inferSharedValue(parsedRows, ["course", "Course"]));
+      setDefaultYear(inferSharedValue(parsedRows, ["year", "Year"]));
       setUploadStatus("ready");
     } catch (uploadError) {
       setHeaders([]);
       setRows([]);
+      setDefaultCourse("");
+      setDefaultYear("");
       setUploadStatus("error");
       setError(uploadError.message || "Unable to read the CSV file.");
     }
@@ -84,17 +133,68 @@ function TeacherDashboardPage() {
     if (!rows.length) {
       setUploadStatus("error");
       setError("Upload a CSV file before processing.");
-      return;
+      return false;
     }
 
     if (missingHeaders.length > 0) {
       setUploadStatus("error");
       setError(`Missing required columns: ${missingHeaders.join(", ")}`);
-      return;
+      return false;
+    }
+
+    if (!resolvedCourse) {
+      setUploadStatus("error");
+      setError("Add a course column or enter a default course before upload.");
+      return false;
+    }
+
+    if (!resolvedYear) {
+      setUploadStatus("error");
+      setError("Add a year column or enter a default year before upload.");
+      return false;
+    }
+
+    if (assessmentHeaders.length === 0) {
+      setUploadStatus("error");
+      setError("Add at least one assessment column in the CSV.");
+      return false;
     }
 
     setUploadStatus("processed");
     setError("");
+    setSuccessMessage("");
+    return true;
+  }
+
+  async function handleUpload() {
+    const isValid = handleProcessUpload();
+
+    if (!isValid) {
+      return;
+    }
+
+    if (!teacherToken.trim()) {
+      setUploadStatus("error");
+      setError("Enter the teacher token before uploading.");
+      return;
+    }
+
+    setUploadStatus("uploading");
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      const result = await uploadTeacherResults({
+        token: teacherToken.trim(),
+        payload: payloadPreview,
+      });
+
+      setUploadStatus("uploaded");
+      setSuccessMessage(buildSuccessMessage(result));
+    } catch (uploadError) {
+      setUploadStatus("error");
+      setError(uploadError.message || "Unable to upload course results.");
+    }
   }
 
   function handleDownloadTemplate() {
@@ -115,17 +215,17 @@ function TeacherDashboardPage() {
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(234,179,8,0.14),transparent_28%),radial-gradient(circle_at_85%_10%,rgba(14,165,233,0.2),transparent_30%),linear-gradient(135deg,#120f0d_0%,#1f1b18_45%,#111827_100%)] px-4 py-7 text-slate-50">
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02),rgba(255,255,255,0.02)),radial-gradient(circle_at_center,transparent_0_62%,rgba(0,0,0,0.16)_100%)] opacity-85" />
       <div className="relative mx-auto w-full max-w-7xl">
-        <section className="mb-5 grid gap-5 rounded-[32px] border border-amber-50/10 bg-slate-950/45 p-7 shadow-[0_28px_90px_rgba(3,7,18,0.38)] backdrop-blur-[18px] lg:grid-cols-[minmax(0,1.1fr)_auto] lg:items-center">
+        <section className="mb-5 grid gap-5 rounded-4xl border border-amber-50/10 bg-slate-950/45 p-7 shadow-[0_28px_90px_rgba(3,7,18,0.38)] backdrop-blur-[18px] lg:grid-cols-[minmax(0,1.1fr)_auto] lg:items-center">
           <div>
             <p className="text-[0.72rem] uppercase tracking-[0.16em] text-slate-400">
               Teachers Dashboard
             </p>
             <h1 className="mt-3 max-w-[14ch] font-serif text-[clamp(2.4rem,5vw,4rem)] leading-[0.96] tracking-[-0.04em] text-slate-50">
-              Bulk upload student results from CSV.
+              Upload different course results with different assessments.
             </h1>
             <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-300">
-              Review your file before publish time, check required columns, and
-              prepare large batches of student results in one streamlined space.
+              Drop in a course CSV, inspect the detected assessment headers, and
+              send the parsed batch to the backend as JSON without reshaping it by hand.
             </p>
           </div>
 
@@ -135,7 +235,7 @@ function TeacherDashboardPage() {
               type="button"
               onClick={handleDownloadTemplate}
             >
-              Download Template
+              Download Sample CSV
             </button>
             <Link
               className="min-h-12 rounded-full border border-white/12 bg-white/6 px-5 py-3 font-semibold text-slate-100 transition duration-200 ease-out hover:-translate-y-px hover:border-sky-400/45 hover:bg-sky-400/10"
@@ -146,7 +246,7 @@ function TeacherDashboardPage() {
           </div>
         </section>
 
-        <section className="grid gap-5 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
+        <section className="grid gap-5 xl:grid-cols-[minmax(0,430px)_minmax(0,1fr)]">
           <article className="rounded-[28px] border border-amber-50/10 bg-slate-950/50 p-6 shadow-[0_28px_90px_rgba(3,7,18,0.38)] backdrop-blur-[18px]">
             <p className="text-[0.72rem] uppercase tracking-[0.16em] text-slate-400">
               Upload Center
@@ -155,8 +255,8 @@ function TeacherDashboardPage() {
               Add Results File
             </h2>
             <p className="mt-3 leading-7 text-slate-300">
-              Upload a CSV file with one student per row. The dashboard will
-              validate the columns and preview the first records before import.
+              The page reads the CSV first, preserves the original headers, and
+              sends <code className="rounded bg-white/8 px-1.5 py-0.5 text-slate-100">{"{ course, year, rows }"}</code> as JSON to the backend.
             </p>
 
             <label className="mt-6 block cursor-pointer rounded-[28px] border border-dashed border-sky-400/35 bg-sky-400/8 p-7 text-center transition hover:border-sky-300/50 hover:bg-sky-400/12">
@@ -178,27 +278,72 @@ function TeacherDashboardPage() {
             </label>
 
             <div className="mt-6 grid gap-3">
+              <label className="rounded-[22px] border border-white/8 bg-white/5 p-4">
+                <span className="text-sm text-slate-400">Teacher token</span>
+                <input
+                  className="mt-2 block w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-base text-slate-50 outline-none transition focus:border-sky-400/45"
+                  type="password"
+                  value={teacherToken}
+                  onChange={(event) => setTeacherToken(event.target.value)}
+                  placeholder="Enter x-teacher-token"
+                />
+              </label>
+
               <div className="rounded-[22px] border border-white/8 bg-white/5 p-4">
                 <span className="text-sm text-slate-400">Current file</span>
                 <strong className="mt-2 block text-base text-slate-50">
                   {fileName || "No file selected yet"}
                 </strong>
               </div>
+
               <div className="rounded-[22px] border border-white/8 bg-white/5 p-4">
                 <span className="text-sm text-slate-400">Upload status</span>
                 <strong className="mt-2 block text-base text-slate-50">
                   {uploadStatus === "idle" && "Waiting for file"}
                   {uploadStatus === "reading" && "Reading CSV"}
                   {uploadStatus === "ready" && "Preview ready"}
-                  {uploadStatus === "processed" && "Ready for backend import"}
+                  {uploadStatus === "processed" && "JSON payload ready"}
+                  {uploadStatus === "uploading" && "Sending to backend"}
+                  {uploadStatus === "uploaded" && "Upload complete"}
                   {uploadStatus === "error" && "Needs attention"}
                 </strong>
               </div>
             </div>
 
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <label className="rounded-[22px] border border-white/8 bg-white/5 p-4">
+                <span className="text-sm text-slate-400">Default course</span>
+                <input
+                  className="mt-2 block w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-base text-slate-50 outline-none transition focus:border-sky-400/45"
+                  type="text"
+                  value={defaultCourse}
+                  onChange={(event) => setDefaultCourse(event.target.value)}
+                  placeholder="fss"
+                />
+              </label>
+
+              <label className="rounded-[22px] border border-white/8 bg-white/5 p-4">
+                <span className="text-sm text-slate-400">Default year</span>
+                <input
+                  className="mt-2 block w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-base text-slate-50 outline-none transition focus:border-sky-400/45"
+                  type="number"
+                  min="1"
+                  value={defaultYear}
+                  onChange={(event) => setDefaultYear(event.target.value)}
+                  placeholder="3"
+                />
+              </label>
+            </div>
+
             {error ? (
               <div className="mt-5 rounded-[22px] border border-rose-400/30 bg-rose-400/10 p-4 text-sm leading-6 text-rose-100">
                 {error}
+              </div>
+            ) : null}
+
+            {successMessage ? (
+              <div className="mt-5 rounded-[22px] border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm leading-6 text-emerald-100">
+                {successMessage}
               </div>
             ) : null}
 
@@ -208,40 +353,84 @@ function TeacherDashboardPage() {
               </div>
             ) : null}
 
-            <button
-              className="mt-6 min-h-14 w-full rounded-[18px] bg-linear-to-r from-emerald-300 via-emerald-400 to-sky-400 px-6 font-bold text-slate-950 shadow-[0_18px_38px_rgba(52,211,153,0.2)] transition duration-200 ease-out hover:-translate-y-px hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
-              type="button"
-              disabled={!rows.length}
-              onClick={handleProcessUpload}
-            >
-              Validate Upload Batch
-            </button>
-
-            <p className="mt-3 text-sm leading-6 text-slate-400">
-              This dashboard currently validates and previews the batch on the
-              client. The backend import endpoint can be connected next.
-            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <button
+                className="min-h-14 w-full rounded-[18px] border border-white/10 bg-white/6 px-6 font-semibold text-slate-100 transition duration-200 ease-out hover:-translate-y-px hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+                disabled={!canValidate}
+                onClick={handleProcessUpload}
+              >
+                Validate Batch
+              </button>
+              <button
+                className="min-h-14 w-full rounded-[18px] bg-linear-to-r from-emerald-300 via-emerald-400 to-sky-400 px-6 font-bold text-slate-950 shadow-[0_18px_38px_rgba(52,211,153,0.2)] transition duration-200 ease-out hover:-translate-y-px hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+                disabled={!canUpload || uploadStatus === "uploading"}
+                onClick={handleUpload}
+              >
+                {uploadStatus === "uploading" ? "Uploading..." : "Upload to Backend"}
+              </button>
+            </div>
           </article>
 
           <div className="grid gap-5">
-            <section className="grid gap-4 md:grid-cols-3">
-              <article className="rounded-[24px] border border-white/8 bg-slate-950/50 p-5 shadow-[0_28px_90px_rgba(3,7,18,0.25)] backdrop-blur-[18px]">
-                <span className="text-sm text-slate-400">Rows Parsed</span>
-                <strong className="mt-2 block text-3xl text-slate-50">
-                  {rows.length}
-                </strong>
+            <section className="grid gap-4 md:grid-cols-4">
+              <StatCard label="Rows Parsed" value={rows.length} />
+              <StatCard label="Columns Found" value={headers.length} />
+              <StatCard label="Assessments" value={assessmentHeaders.length} />
+              <StatCard
+                label="Required Checks"
+                value={missingHeaders.length === 0 && headers.length > 0 ? "Pass" : "Pending"}
+              />
+            </section>
+
+            <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]">
+              <article className="rounded-[28px] border border-amber-50/10 bg-slate-950/50 p-6 shadow-[0_28px_90px_rgba(3,7,18,0.38)] backdrop-blur-[18px]">
+                <p className="text-[0.72rem] uppercase tracking-[0.16em] text-slate-400">
+                  Batch Context
+                </p>
+                <h2 className="mt-2 font-serif text-3xl text-slate-50">
+                  Upload Summary
+                </h2>
+                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                  <InfoCard label="Resolved course" value={payloadPreview.course || "Not resolved yet"} />
+                  <InfoCard label="Resolved year" value={payloadPreview.year || "Not resolved yet"} />
+                  <InfoCard label="Profile fields" value="Student ID, names, sex" />
+                  <InfoCard
+                    label="Assessment mode"
+                    value={
+                      assessmentHeaders.length > 0
+                        ? `${assessmentHeaders.length} dynamic columns`
+                        : "Waiting for assessment headers"
+                    }
+                  />
+                </div>
               </article>
-              <article className="rounded-[24px] border border-white/8 bg-slate-950/50 p-5 shadow-[0_28px_90px_rgba(3,7,18,0.25)] backdrop-blur-[18px]">
-                <span className="text-sm text-slate-400">Columns Found</span>
-                <strong className="mt-2 block text-3xl text-slate-50">
-                  {headers.length}
-                </strong>
-              </article>
-              <article className="rounded-[24px] border border-white/8 bg-slate-950/50 p-5 shadow-[0_28px_90px_rgba(3,7,18,0.25)] backdrop-blur-[18px]">
-                <span className="text-sm text-slate-400">Required Checks</span>
-                <strong className="mt-2 block text-3xl text-slate-50">
-                  {missingHeaders.length === 0 && headers.length > 0 ? "Pass" : "Pending"}
-                </strong>
+
+              <article className="rounded-[28px] border border-amber-50/10 bg-slate-950/50 p-6 shadow-[0_28px_90px_rgba(3,7,18,0.38)] backdrop-blur-[18px]">
+                <p className="text-[0.72rem] uppercase tracking-[0.16em] text-slate-400">
+                  Assessment Columns
+                </p>
+                <h2 className="mt-2 font-serif text-3xl text-slate-50">
+                  Detected from CSV
+                </h2>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {assessmentHeaders.length > 0 ? (
+                    assessmentHeaders.map((header) => (
+                      <span
+                        className="rounded-full border border-sky-300/18 bg-sky-400/10 px-3 py-2 text-sm text-sky-100"
+                        key={header}
+                      >
+                        {header}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-sm leading-6 text-slate-400">
+                      Add numeric assessment columns such as `mid exam`, `assignment`,
+                      `attendance`, `presentation`, or `final exam`.
+                    </span>
+                  )}
+                </div>
               </article>
             </section>
 
@@ -261,11 +450,11 @@ function TeacherDashboardPage() {
               </div>
 
               {headers.length === 0 ? (
-                <div className="mt-6 rounded-[24px] border border-dashed border-white/10 bg-white/[0.03] p-8 text-center text-slate-300">
+                <div className="mt-6 rounded-3xl border border-dashed border-white/10 bg-white/3 p-8 text-center text-slate-300">
                   Upload a CSV file to preview student results here.
                 </div>
               ) : (
-                <div className="mt-6 overflow-hidden rounded-[24px] border border-white/8">
+                <div className="mt-6 overflow-hidden rounded-3xl border border-white/8">
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-white/8 text-left text-sm">
                       <thead className="bg-white/6">
@@ -303,6 +492,18 @@ function TeacherDashboardPage() {
 
             <section className="rounded-[28px] border border-amber-50/10 bg-slate-950/50 p-6 shadow-[0_28px_90px_rgba(3,7,18,0.38)] backdrop-blur-[18px]">
               <p className="text-[0.72rem] uppercase tracking-[0.16em] text-slate-400">
+                JSON Preview
+              </p>
+              <h2 className="mt-2 font-serif text-3xl text-slate-50">
+                Payload Sent to Backend
+              </h2>
+              <pre className="mt-6 overflow-x-auto rounded-3xl border border-white/8 bg-slate-950/80 p-5 text-sm leading-7 text-slate-200">
+                <code>{JSON.stringify(buildPayloadPreview(payloadPreview), null, 2)}</code>
+              </pre>
+            </section>
+
+            <section className="rounded-[28px] border border-amber-50/10 bg-slate-950/50 p-6 shadow-[0_28px_90px_rgba(3,7,18,0.38)] backdrop-blur-[18px]">
+              <p className="text-[0.72rem] uppercase tracking-[0.16em] text-slate-400">
                 Expected Format
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -320,6 +521,24 @@ function TeacherDashboardPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+function StatCard({ label, value }) {
+  return (
+    <article className="rounded-3xl border border-white/8 bg-slate-950/50 p-5 shadow-[0_28px_90px_rgba(3,7,18,0.25)] backdrop-blur-[18px]">
+      <span className="text-sm text-slate-400">{label}</span>
+      <strong className="mt-2 block text-3xl text-slate-50">{value}</strong>
+    </article>
+  );
+}
+
+function InfoCard({ label, value }) {
+  return (
+    <div className="rounded-[22px] border border-white/8 bg-white/5 p-4">
+      <span className="text-sm text-slate-400">{label}</span>
+      <strong className="mt-2 block text-base text-slate-50">{value}</strong>
+    </div>
   );
 }
 
@@ -396,6 +615,59 @@ function escapeCsvValue(value) {
   }
 
   return stringValue;
+}
+
+function inferSharedValue(rows, candidateHeaders) {
+  const values = Array.from(
+    new Set(
+      rows
+        .map((row) =>
+          candidateHeaders
+            .map((header) => row[header]?.trim())
+            .find(Boolean),
+        )
+        .filter(Boolean),
+    ),
+  );
+
+  return values.length === 1 ? values[0] : "";
+}
+
+function buildUploadPayload({ rows, course, year }) {
+  return {
+    course,
+    year,
+    rows: rows.map((row) => {
+      const nextRow = { ...row };
+
+      if (!nextRow.course && !nextRow.Course && course) {
+        nextRow.course = course;
+      }
+
+      if (!nextRow.year && !nextRow.Year && year) {
+        nextRow.year = year;
+      }
+
+      return nextRow;
+    }),
+  };
+}
+
+function buildPayloadPreview(payload) {
+  return {
+    course: payload.course,
+    year: payload.year,
+    rowCount: payload.rows.length,
+    rows: payload.rows.slice(0, 2),
+  };
+}
+
+function buildSuccessMessage(result) {
+  const studentUpserts = result?.students?.upsertedCount ?? 0;
+  const resultUpserts = result?.results?.upsertedCount ?? 0;
+  const resultMatches = result?.results?.matchedCount ?? 0;
+
+  return `Uploaded successfully. Student profiles added: ${studentUpserts}. Course results added: ${resultUpserts}. Existing course results matched: ${resultMatches}.`;
 }
 
 export default TeacherDashboardPage;

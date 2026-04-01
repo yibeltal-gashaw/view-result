@@ -1,24 +1,38 @@
-const mongoose = require('mongoose');
-const studentSchema = new mongoose.Schema({
-  "Student ID": String,
-  "First Name": String,
-  "Father Name": String,
-  "Sex": String,
-  "year": Number,
-  "course": String,
-  "mid exam": Number,
-  "quiz": Number,
-  "lab": Number,
-  "project": Number,
-  "final exam": Number,
-  assessments: {
-    type: Map,
-    of: Number,
-  },
-  "total": Number,
-  "grade": String
-}, { collection: 'students' });
+const mongoose = require("mongoose");
 
-const Student = mongoose.model('Student', studentSchema);
+const studentSchema = new mongoose.Schema(
+  {
+    studentId: {
+      type: String,
+      required: true,
+      trim: true,
+      uppercase: true,
+    },
+    firstName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    fatherName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    sex: {
+      type: String,
+      default: "",
+      trim: true,
+      uppercase: true,
+    },
+  },
+  {
+    collection: "students",
+    timestamps: true,
+  },
+);
+
+studentSchema.index({ studentId: 1 }, { unique: true });
+
+const Student = mongoose.model("Student", studentSchema);
 
 module.exports = Student;

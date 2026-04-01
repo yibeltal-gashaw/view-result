@@ -1,4 +1,5 @@
 const Student = require("../model/student.model");
+const Result = require("../model/result.model");
 const {
   COURSE_FIELDS,
   COURSE_MAP,
@@ -6,69 +7,117 @@ const {
   YEAR_FIELDS,
   YEAR_MAP,
 } = require("../config/resultOptions");
-const { getCourseAssessments } = require("../config/assessmentOptions");
+const {
+  getCourseAssessments,
+  LEGACY_ASSESSMENTS,
+  normalizeAssessmentIdentifier,
+} = require("../config/assessmentOptions");
 const { getStudentField, resolveMappedValue } = require("../utils/resultFilters");
-const { normalizeOptionalText } = require("../utils/text");
+const { normalizeOptionalText, normalizeStudentId } = require("../utils/text");
 
 async function findStudent(studentId, options = {}) {
-  const normalizedYear = Number(options.year);
+  const normalizedStudentId = normalizeStudentId(studentId);
   const normalizedCourse = String(options.course || "").trim().toLowerCase();
+  const normalizedYear = Number(options.year);
 
-  return Student.findOne({
-    "Student ID": studentId,
-    course: normalizedCourse,
-    year: normalizedYear,
+  let result;
+
+  if (normalizedCourse && Number.isFinite(normalizedYear)) {
+    result = await Result.findOne({
+      studentId: normalizedStudentId,
+      course: normalizedCourse,
+      year: normalizedYear,
+    }).lean();
+  } else {
+    result = await Result.findOne({
+      studentId: normalizedStudentId,
+    })
+      .sort({ year: -1, updatedAt: -1 })
+      .lean();
+  }
+
+  if (!result) {
+    return null;
+  }
+
+  const student = await Student.findOne({
+    studentId: normalizedStudentId,
   }).lean();
+
+  return {
+    student: student || buildFallbackStudent(normalizedStudentId),
+    result,
+  };
 }
 
-function formatStudentResult(student, options = {}) {
+function formatStudentResult(record, options = {}) {
+  const { student = {}, result = {} } = record || {};
   const requestedYear = resolveMappedValue(options.year, YEAR_MAP);
   const requestedCourse = resolveMappedValue(options.course, COURSE_MAP);
-  const storedYear = getStudentField(student, YEAR_FIELDS, requestedYear);
+  const storedYear = getStudentField(result, YEAR_FIELDS, requestedYear);
   const storedCourse = getStudentField(
-    student,
+    result,
     COURSE_FIELDS,
     requestedCourse || DEFAULT_COURSE_NAME,
   );
   const year = resolveMappedValue(storedYear, YEAR_MAP);
   const course = resolveMappedValue(storedCourse, COURSE_MAP);
-  const courseCode = normalizeOptionalText(options.course) || normalizeOptionalText(student.course);
-  const assessmentItems = buildAssessmentItems(student, courseCode);
-  const breakdown = assessmentItems.reduce((result, item) => {
-    result[item.key] = item.value;
-    return result;
+  const courseCode =
+    normalizeOptionalText(options.course) || normalizeOptionalText(result.course);
+  const assessmentItems = buildAssessmentItems(result, courseCode);
+  const breakdown = assessmentItems.reduce((current, item) => {
+    current[item.key] = item.value;
+    return current;
   }, {});
+  const firstName = student.firstName || "";
+  const fatherName = student.fatherName || "";
+  const sex = student.sex || "";
 
   return {
-    studentId: student["Student ID"],
-    firstName: student["First Name"],
-    fatherName: student["Father Name"],
-    fullName: `${student["First Name"]} ${student["Father Name"]}`.trim(),
-    sex: student["Sex"],
+    studentId: student.studentId || result.studentId,
+    firstName,
+    fatherName,
+    fullName: `${firstName} ${fatherName}`.trim(),
+    sex,
     course,
     year,
-    grade: student["grade"],
-    total: student["total"],
+    grade: result.grade,
+    total: result.total,
     breakdown,
     assessmentItems,
-    avatar: student["Sex"] === "M" ? "male" : "female",
+    avatar: sex === "M" ? "male" : "female",
   };
 }
 
-function buildAssessmentItems(student, courseCode) {
-  const storedAssessments = normalizeAssessmentMap(student.assessments);
+function buildAssessmentItems(result, courseCode) {
+  const configuredAssessments = getCourseAssessments(courseCode);
+  const storedAssessments = normalizeAssessmentMap(result.assessments);
+
+  if (configuredAssessments.length > 0) {
+    const configuredItems = configuredAssessments.map((assessment) => ({
+      key: assessment.key,
+      label: assessment.label,
+      value: resolveStoredAssessmentValue(storedAssessments, assessment),
+    }));
+    const configuredKeys = new Set(
+      configuredAssessments.flatMap((assessment) =>
+        [assessment.key, assessment.field, ...(assessment.aliases || [])].map(
+          normalizeAssessmentIdentifier,
+        ),
+      ),
+    );
+    const extraItems = Object.entries(storedAssessments)
+      .filter(([key]) => !configuredKeys.has(normalizeAssessmentIdentifier(key)))
+      .map(([key, value]) => ({
+        key,
+        label: humanizeAssessmentLabel(key),
+        value,
+      }));
+
+    return [...configuredItems, ...extraItems].filter((item) => item.value !== null);
+  }
 
   if (Object.keys(storedAssessments).length > 0) {
-    const configuredAssessments = getCourseAssessments(courseCode);
-
-    if (configuredAssessments.length > 0) {
-      return configuredAssessments.map((assessment) => ({
-        key: assessment.key,
-        label: assessment.label,
-        value: storedAssessments[assessment.key] ?? storedAssessments[assessment.field] ?? null,
-      }));
-    }
-
     return Object.entries(storedAssessments).map(([key, value]) => ({
       key,
       label: humanizeAssessmentLabel(key),
@@ -76,10 +125,10 @@ function buildAssessmentItems(student, courseCode) {
     }));
   }
 
-  return getCourseAssessments(courseCode).map((assessment) => ({
+  return LEGACY_ASSESSMENTS.map((assessment) => ({
     key: assessment.key,
     label: assessment.label,
-    value: student[assessment.field] ?? null,
+    value: null,
   }));
 }
 
@@ -88,11 +137,49 @@ function normalizeAssessmentMap(assessments) {
     return {};
   }
 
-  if (assessments instanceof Map) {
-    return Object.fromEntries(assessments.entries());
+  const entries =
+    assessments instanceof Map
+      ? Array.from(assessments.entries())
+      : Object.entries(assessments);
+
+  return entries.reduce((current, [key, value]) => {
+    const normalizedValue = normalizeAssessmentValue(value);
+
+    if (normalizedValue !== null) {
+      current[key] = normalizedValue;
+    }
+
+    return current;
+  }, {});
+}
+
+function normalizeAssessmentValue(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
   }
 
-  return assessments;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  const normalizedValue = Number(String(value).trim());
+  return Number.isFinite(normalizedValue) ? normalizedValue : null;
+}
+
+function resolveStoredAssessmentValue(storedAssessments, assessment) {
+  const candidateKeys = new Set(
+    [assessment.key, assessment.field, ...(assessment.aliases || [])].map(
+      normalizeAssessmentIdentifier,
+    ),
+  );
+
+  for (const [storedKey, storedValue] of Object.entries(storedAssessments)) {
+    if (candidateKeys.has(normalizeAssessmentIdentifier(storedKey))) {
+      return storedValue;
+    }
+  }
+
+  return null;
 }
 
 function humanizeAssessmentLabel(key) {
@@ -102,6 +189,15 @@ function humanizeAssessmentLabel(key) {
     .replace(/\s+/g, " ")
     .trim()
     .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function buildFallbackStudent(studentId) {
+  return {
+    studentId,
+    firstName: "",
+    fatherName: "",
+    sex: "",
+  };
 }
 
 module.exports = {

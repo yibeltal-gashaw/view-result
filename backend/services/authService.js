@@ -8,6 +8,20 @@ const USER_ROLES = {
   TEACHER: "TEACHER",
 };
 
+function getUserModel() {
+  if (!prisma || !prisma.user) {
+    const message =
+      "Prisma client User model is unavailable. Ensure prisma generate/migrations are current.";
+    console.error(message, {
+      hasPrisma: !!prisma,
+      hasUserModel: !!prisma?.user,
+    });
+    return null;
+  }
+
+  return prisma.user;
+}
+
 async function ensureAdminUser() {
   const email = normalizeEmail(process.env.ADMIN_EMAIL);
   const password = String(process.env.ADMIN_PASSWORD || "").trim();
@@ -16,7 +30,12 @@ async function ensureAdminUser() {
     return;
   }
 
-  const existingAdmin = await prisma.user.findUnique({
+  const userModel = getUserModel();
+  if (!userModel) {
+    return;
+  }
+
+  const existingAdmin = await userModel.findUnique({
     where: {
       email,
     },
@@ -28,7 +47,7 @@ async function ensureAdminUser() {
 
   const passwordHash = await bcrypt.hash(password, 10);
 
-  await prisma.user.create({
+  await userModel.create({
     data: {
       email,
       passwordHash,
@@ -53,7 +72,18 @@ async function loginUser(payload = {}) {
     };
   }
 
-  const user = await prisma.user.findUnique({
+  const userModel = getUserModel();
+  if (!userModel) {
+    return {
+      status: 500,
+      body: {
+        message:
+          "Internal server error: user model not available. Check Prisma generation.",
+      },
+    };
+  }
+
+  const user = await userModel.findUnique({
     where: {
       email: normalizedEmail,
     },
@@ -123,7 +153,18 @@ async function createUser(currentUser, payload = {}) {
     };
   }
 
-  const existingUser = await prisma.user.findUnique({
+  const userModel = getUserModel();
+  if (!userModel) {
+    return {
+      status: 500,
+      body: {
+        message:
+          "Internal server error: user model not available. Check Prisma generation.",
+      },
+    };
+  }
+
+  const existingUser = await userModel.findUnique({
     where: {
       email,
     },
@@ -139,7 +180,7 @@ async function createUser(currentUser, payload = {}) {
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const user = await prisma.user.create({
+  const user = await userModel.create({
     data: {
       email,
       passwordHash,

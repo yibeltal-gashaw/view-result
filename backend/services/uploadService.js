@@ -2,6 +2,7 @@ const Student = require("../model/student.model");
 const Result = require("../model/result.model");
 const { RESERVED_RESULT_FIELDS } = require("../config/assessmentOptions");
 const { normalizeOptionalText, normalizeStudentId } = require("../utils/text");
+const { calculateGrade } = require("../utils/grade");
 
 const REQUIRED_UPLOAD_FIELDS = ["Student ID", "total"];
 
@@ -143,11 +144,7 @@ function prepareUploadRow(rawRow, options) {
   //   };
   // }
 
-  // if (!grade) {
-  //   return {
-  //     error: buildRowError(options.rowIndex, "Grade is missing."),
-  //   };
-  // }
+  const resolvedGrade = grade || calculateGrade(total);
 
   return {
     studentDocument: {
@@ -161,7 +158,7 @@ function prepareUploadRow(rawRow, options) {
       year,
       course,
       total,
-      grade,
+      grade: resolvedGrade,
       assessments: extractAssessments(rawRow),
     },
   };

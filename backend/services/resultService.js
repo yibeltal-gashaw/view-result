@@ -13,6 +13,7 @@ const {
   normalizeAssessmentIdentifier,
 } = require("../config/assessmentOptions");
 const { getStudentField, resolveMappedValue } = require("../utils/resultFilters");
+const { calculateGrade } = require("../utils/grade");
 const { normalizeOptionalText, normalizeStudentId } = require("../utils/text");
 
 async function findStudent(studentId, options = {}) {
@@ -87,6 +88,7 @@ function formatStudentResult(record, options = {}) {
   const firstName = student.firstName || "";
   const fatherName = student.fatherName || "";
   const sex = student.sex || "";
+  const grade = normalizeOptionalText(result.grade) || calculateGrade(result.total);
 
   return {
     studentId: student.studentId || result.studentId,
@@ -96,7 +98,7 @@ function formatStudentResult(record, options = {}) {
     sex,
     course,
     year,
-    grade: result.grade,
+    grade,
     total: result.total,
     breakdown,
     assessmentItems,

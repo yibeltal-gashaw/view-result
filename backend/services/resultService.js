@@ -1,10 +1,7 @@
-const Student = require("../model/student.model");
-const Result = require("../model/result.model");
+const { prisma } = require("../config/database");
 const {
-  COURSE_FIELDS,
   COURSE_MAP,
   DEFAULT_COURSE_NAME,
-  YEAR_FIELDS,
   YEAR_MAP,
 } = require("../config/resultOptions");
 const {
@@ -12,7 +9,6 @@ const {
   LEGACY_ASSESSMENTS,
   normalizeAssessmentIdentifier,
 } = require("../config/assessmentOptions");
-const { getStudentField, resolveMappedValue } = require("../utils/resultFilters");
 const { calculateGrade } = require("../utils/grade");
 const { normalizeOptionalText, normalizeStudentId } = require("../utils/text");
 
@@ -24,62 +20,69 @@ async function findStudent(studentId, options = {}) {
   let result;
 
   if (normalizedCourse && Number.isFinite(normalizedYear)) {
-    result = await Result.findOne({
-      studentId: normalizedStudentId,
-      course: normalizedCourse,
-      year: normalizedYear,
-    }).lean();
+    result = await prisma.result.findUnique({
+      where: {
+        studentId_year_course: {
+          studentId: normalizedStudentId,
+          year: normalizedYear,
+          course: normalizedCourse,
+        },
+      },
+      include: {
+        student: true,
+      },
+    });
   } else {
-    result = await Result.findOne({
-      studentId: normalizedStudentId,
-    })
-      .sort({ year: -1, updatedAt: -1 })
-      .lean();
+    result = await prisma.result.findFirst({
+      where: {
+        studentId: normalizedStudentId,
+      },
+      orderBy: [{ year: "desc" }, { updatedAt: "desc" }],
+      include: {
+        student: true,
+      },
+    });
   }
 
   if (!result) {
     return null;
   }
 
-  const student = await Student.findOne({
-    studentId: normalizedStudentId,
-  }).lean();
-
   return {
-    student: student || buildFallbackStudent(normalizedStudentId),
+    student: result.student || buildFallbackStudent(normalizedStudentId),
     result,
   };
 }
 
 async function listCourses() {
-  const courseCodes = await Result.distinct("course", {
-    course: { $exists: true, $ne: "" },
+  const courses = await prisma.result.findMany({
+    where: {
+      course: {
+        not: "",
+      },
+    },
+    distinct: ["course"],
+    select: {
+      course: true,
+    },
+    orderBy: {
+      course: "asc",
+    },
   });
 
-  return courseCodes
-    .map((courseCode) => normalizeOptionalText(courseCode).toLowerCase())
-    .filter(Boolean)
-    .sort((left, right) => left.localeCompare(right))
-    .map((courseCode) => ({
-      value: courseCode,
-      label: COURSE_MAP[courseCode] || humanizeAssessmentLabel(courseCode),
-    }));
+  return courses.map(({ course }) => ({
+    value: course,
+    label: COURSE_MAP[course] || humanizeAssessmentLabel(course),
+  }));
 }
 
 function formatStudentResult(record, options = {}) {
   const { student = {}, result = {} } = record || {};
-  const requestedYear = resolveMappedValue(options.year, YEAR_MAP);
-  const requestedCourse = resolveMappedValue(options.course, COURSE_MAP);
-  const storedYear = getStudentField(result, YEAR_FIELDS, requestedYear);
-  const storedCourse = getStudentField(
-    result,
-    COURSE_FIELDS,
-    requestedCourse || DEFAULT_COURSE_NAME,
-  );
-  const year = resolveMappedValue(storedYear, YEAR_MAP);
-  const course = resolveMappedValue(storedCourse, COURSE_MAP);
+  const yearCode = normalizeOptionalText(result.year || options.year);
   const courseCode =
-    normalizeOptionalText(options.course) || normalizeOptionalText(result.course);
+    normalizeOptionalText(result.course || options.course).toLowerCase();
+  const year = YEAR_MAP[yearCode] || YEAR_MAP[String(result.year)] || yearCode;
+  const course = COURSE_MAP[courseCode] || courseCode || DEFAULT_COURSE_NAME;
   const assessmentItems = buildAssessmentItems(result, courseCode);
   const breakdown = assessmentItems.reduce((current, item) => {
     current[item.key] = item.value;
@@ -150,16 +153,11 @@ function buildAssessmentItems(result, courseCode) {
 }
 
 function normalizeAssessmentMap(assessments) {
-  if (!assessments) {
+  if (!assessments || typeof assessments !== "object") {
     return {};
   }
 
-  const entries =
-    assessments instanceof Map
-      ? Array.from(assessments.entries())
-      : Object.entries(assessments);
-
-  return entries.reduce((current, [key, value]) => {
+  return Object.entries(assessments).reduce((current, [key, value]) => {
     const normalizedValue = normalizeAssessmentValue(value);
 
     if (normalizedValue !== null) {

@@ -1,5 +1,4 @@
-const Student = require("../model/student.model");
-const Result = require("../model/result.model");
+const { prisma } = require("../config/database");
 const { RESERVED_RESULT_FIELDS } = require("../config/assessmentOptions");
 const { normalizeOptionalText, normalizeStudentId } = require("../utils/text");
 const { calculateGrade } = require("../utils/grade");
@@ -21,8 +20,7 @@ async function uploadCourseResults(payload = {}) {
   }
 
   const validationErrors = [];
-  const studentOperations = [];
-  const resultOperations = [];
+  const preparedRows = [];
 
   rows.forEach((rawRow, index) => {
     const preparedRow = prepareUploadRow(rawRow, {
@@ -36,31 +34,7 @@ async function uploadCourseResults(payload = {}) {
       return;
     }
 
-    studentOperations.push({
-      updateOne: {
-        filter: {
-          studentId: preparedRow.studentDocument.studentId,
-        },
-        update: {
-          $set: preparedRow.studentDocument,
-        },
-        upsert: true,
-      },
-    });
-
-    resultOperations.push({
-      updateOne: {
-        filter: {
-          studentId: preparedRow.resultDocument.studentId,
-          course: preparedRow.resultDocument.course,
-          year: preparedRow.resultDocument.year,
-        },
-        update: {
-          $set: preparedRow.resultDocument,
-        },
-        upsert: true,
-      },
-    });
+    preparedRows.push(preparedRow);
   });
 
   if (validationErrors.length > 0) {
@@ -73,21 +47,74 @@ async function uploadCourseResults(payload = {}) {
     };
   }
 
-  const [studentWriteResult, resultWriteResult] = await Promise.all([
-    studentOperations.length > 0
-      ? Student.bulkWrite(studentOperations, { ordered: false })
-      : null,
-    resultOperations.length > 0
-      ? Result.bulkWrite(resultOperations, { ordered: false })
-      : null,
-  ]);
+  const uniqueStudentIds = [...new Set(preparedRows.map((item) => item.studentDocument.studentId))];
+  const existingStudents = await prisma.student.findMany({
+    where: {
+      studentId: {
+        in: uniqueStudentIds,
+      },
+    },
+    select: {
+      studentId: true,
+    },
+  });
+  const existingResults = await prisma.result.findMany({
+    where: {
+      OR: preparedRows.map((item) => ({
+        studentId: item.resultDocument.studentId,
+        year: item.resultDocument.year,
+        course: item.resultDocument.course,
+      })),
+    },
+    select: {
+      studentId: true,
+      year: true,
+      course: true,
+    },
+  });
+
+  const existingStudentIds = new Set(existingStudents.map((item) => item.studentId));
+  const existingResultKeys = new Set(
+    existingResults.map((item) => buildResultKey(item)),
+  );
+
+  await prisma.$transaction(
+    preparedRows.flatMap((item) => [
+      prisma.student.upsert({
+        where: {
+          studentId: item.studentDocument.studentId,
+        },
+        create: item.studentDocument,
+        update: item.studentDocument,
+      }),
+      prisma.result.upsert({
+        where: {
+          studentId_year_course: {
+            studentId: item.resultDocument.studentId,
+            year: item.resultDocument.year,
+            course: item.resultDocument.course,
+          },
+        },
+        create: item.resultDocument,
+        update: item.resultDocument,
+      }),
+    ]),
+  );
 
   return {
     status: 200,
     body: {
       message: "Course results uploaded successfully.",
-      students: summarizeBulkResult(studentWriteResult),
-      results: summarizeBulkResult(resultWriteResult),
+      students: summarizeUpsertCounts({
+        total: preparedRows.length,
+        existingKeys: existingStudentIds,
+        keys: preparedRows.map((item) => item.studentDocument.studentId),
+      }),
+      results: summarizeUpsertCounts({
+        total: preparedRows.length,
+        existingKeys: existingResultKeys,
+        keys: preparedRows.map((item) => buildResultKey(item.resultDocument)),
+      }),
     },
   };
 }
@@ -138,13 +165,11 @@ function prepareUploadRow(rawRow, options) {
     };
   }
 
-  // if (total === null) {
-  //   return {
-  //     error: buildRowError(options.rowIndex, "Total must be numeric."),
-  //   };
-  // }
-
-  const resolvedGrade = grade || calculateGrade(total);
+  if (total === null) {
+    return {
+      error: buildRowError(options.rowIndex, "Total must be numeric."),
+    };
+  }
 
   return {
     studentDocument: {
@@ -158,7 +183,7 @@ function prepareUploadRow(rawRow, options) {
       year,
       course,
       total,
-      grade: resolvedGrade,
+      grade: grade || calculateGrade(total),
       assessments: extractAssessments(rawRow),
     },
   };
@@ -205,21 +230,27 @@ function buildRowError(index, message) {
   };
 }
 
-function summarizeBulkResult(result) {
-  if (!result) {
-    return {
-      matchedCount: 0,
-      modifiedCount: 0,
-      upsertedCount: 0,
-      insertedCount: 0,
-    };
-  }
+function buildResultKey(result) {
+  return `${result.studentId}::${result.year}::${result.course}`;
+}
+
+function summarizeUpsertCounts({ existingKeys, keys }) {
+  let matchedCount = 0;
+  let upsertedCount = 0;
+
+  keys.forEach((key) => {
+    if (existingKeys.has(key)) {
+      matchedCount += 1;
+    } else {
+      upsertedCount += 1;
+    }
+  });
 
   return {
-    matchedCount: result.matchedCount || 0,
-    modifiedCount: result.modifiedCount || 0,
-    upsertedCount: result.upsertedCount || 0,
-    insertedCount: result.insertedCount || 0,
+    matchedCount,
+    modifiedCount: matchedCount,
+    upsertedCount,
+    insertedCount: upsertedCount,
   };
 }
 

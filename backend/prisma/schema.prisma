@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Student {
+  id         Int      @id @default(autoincrement())
+  studentId  String   @unique
+  firstName  String   @default("")
+  fatherName String   @default("")
+  sex        String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  results    Result[]
+}
+
+model Result {
+  id          Int      @id @default(autoincrement())
+  studentId   String
+  year        Int
+  course      String
+  assessments Json     @default("{}")
+  total       Float
+  grade       String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  student     Student  @relation(fields: [studentId], references: [studentId], onDelete: Cascade)
+
+  @@unique([studentId, year, course])
+  @@index([course])
+  @@index([studentId, updatedAt])
+}

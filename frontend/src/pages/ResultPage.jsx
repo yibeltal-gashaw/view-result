@@ -76,7 +76,6 @@ function ResultPage() {
         if (cancelled) {
           return;
         }
-
         setError(fetchError.message || "Unable to load result.");
         setStatus("error");
       }

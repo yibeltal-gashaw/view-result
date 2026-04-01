@@ -29,7 +29,11 @@ export async function uploadTeacherResults({ token, payload }) {
   }
 
   if (!response.ok) {
-    throw new Error(data?.message || "Unable to upload course results.");
+    const error = new Error(data?.message || "Unable to upload course results.");
+    error.errors = Array.isArray(data?.errors) ? data.errors : [];
+    error.status = response.status;
+    error.payload = data;
+    throw error;
   }
 
   if (!data) {

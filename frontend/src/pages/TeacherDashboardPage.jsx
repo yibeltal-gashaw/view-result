@@ -56,6 +56,7 @@ function TeacherDashboardPage() {
   const [defaultCourse, setDefaultCourse] = useState("");
   const [defaultYear, setDefaultYear] = useState("");
   const [error, setError] = useState("");
+  const [uploadErrors, setUploadErrors] = useState([]);
   const [successMessage, setSuccessMessage] = useState("");
   const [uploadStatus, setUploadStatus] = useState("idle");
 
@@ -103,6 +104,7 @@ function TeacherDashboardPage() {
 
     setUploadStatus("reading");
     setError("");
+    setUploadErrors([]);
     setSuccessMessage("");
     setFileName(file.name);
 
@@ -126,6 +128,7 @@ function TeacherDashboardPage() {
       setDefaultYear("");
       setUploadStatus("error");
       setError(uploadError.message || "Unable to read the CSV file.");
+      setUploadErrors([]);
     }
   }
 
@@ -133,35 +136,41 @@ function TeacherDashboardPage() {
     if (!rows.length) {
       setUploadStatus("error");
       setError("Upload a CSV file before processing.");
+      setUploadErrors([]);
       return false;
     }
 
     if (missingHeaders.length > 0) {
       setUploadStatus("error");
       setError(`Missing required columns: ${missingHeaders.join(", ")}`);
+      setUploadErrors([]);
       return false;
     }
 
     if (!resolvedCourse) {
       setUploadStatus("error");
       setError("Add a course column or enter a default course before upload.");
+      setUploadErrors([]);
       return false;
     }
 
     if (!resolvedYear) {
       setUploadStatus("error");
       setError("Add a year column or enter a default year before upload.");
+      setUploadErrors([]);
       return false;
     }
 
     if (assessmentHeaders.length === 0) {
       setUploadStatus("error");
       setError("Add at least one assessment column in the CSV.");
+      setUploadErrors([]);
       return false;
     }
 
     setUploadStatus("processed");
     setError("");
+    setUploadErrors([]);
     setSuccessMessage("");
     return true;
   }
@@ -176,11 +185,13 @@ function TeacherDashboardPage() {
     if (!teacherToken.trim()) {
       setUploadStatus("error");
       setError("Enter the teacher token before uploading.");
+      setUploadErrors([]);
       return;
     }
 
     setUploadStatus("uploading");
     setError("");
+    setUploadErrors([]);
     setSuccessMessage("");
 
     try {
@@ -193,7 +204,13 @@ function TeacherDashboardPage() {
       setSuccessMessage(buildSuccessMessage(result));
     } catch (uploadError) {
       setUploadStatus("error");
+      if (Array.isArray(uploadError?.errors)) {
+        uploadError.errors.forEach((err) => {
+          console.error("Upload error detail:", err);
+        });
+      }
       setError(uploadError.message || "Unable to upload course results.");
+      setUploadErrors(Array.isArray(uploadError?.errors) ? uploadError.errors : []);
     }
   }
 
@@ -338,6 +355,24 @@ function TeacherDashboardPage() {
             {error ? (
               <div className="mt-5 rounded-[22px] border border-rose-400/30 bg-rose-400/10 p-4 text-sm leading-6 text-rose-100">
                 {error}
+              </div>
+            ) : null}
+
+            {uploadErrors.length > 0 ? (
+              <div className="mt-5 rounded-[22px] border border-rose-400/30 bg-rose-400/10 p-4">
+                <p className="text-sm font-semibold text-rose-100">
+                  Upload validation details
+                </p>
+                <div className="mt-3 space-y-2 text-sm leading-6 text-rose-50">
+                  {uploadErrors.map((item, index) => (
+                    <div
+                      className="rounded-2xl border border-rose-300/15 bg-black/10 px-3 py-2"
+                      key={`${item.row || "row"}-${index}`}
+                    >
+                      Row {item.row || "?"}: {item.message || "Invalid row"}
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : null}
 

@@ -3,7 +3,7 @@ const Result = require("../model/result.model");
 const { RESERVED_RESULT_FIELDS } = require("../config/assessmentOptions");
 const { normalizeOptionalText, normalizeStudentId } = require("../utils/text");
 
-const REQUIRED_UPLOAD_FIELDS = ["Student ID", "total", "grade"];
+const REQUIRED_UPLOAD_FIELDS = ["Student ID", "total"];
 
 async function uploadCourseResults(payload = {}) {
   const rows = Array.isArray(payload.rows) ? payload.rows : [];
@@ -137,17 +137,17 @@ function prepareUploadRow(rawRow, options) {
     };
   }
 
-  if (total === null) {
-    return {
-      error: buildRowError(options.rowIndex, "Total must be numeric."),
-    };
-  }
+  // if (total === null) {
+  //   return {
+  //     error: buildRowError(options.rowIndex, "Total must be numeric."),
+  //   };
+  // }
 
-  if (!grade) {
-    return {
-      error: buildRowError(options.rowIndex, "Grade is missing."),
-    };
-  }
+  // if (!grade) {
+  //   return {
+  //     error: buildRowError(options.rowIndex, "Grade is missing."),
+  //   };
+  // }
 
   return {
     studentDocument: {

@@ -1,9 +1,25 @@
-const { findStudent, formatStudentResult } = require("../services/resultService");
+const {
+  findStudent,
+  formatStudentResult,
+  listCourses,
+} = require("../services/resultService");
 const { uploadCourseResults } = require("../services/uploadService");
 const { normalizeOptionalText, normalizeStudentId } = require("../utils/text");
 
 function getHealth(req, res) {
   res.send("Telegram bot is running");
+}
+
+async function getCourses(req, res) {
+  try {
+    const courses = await listCourses();
+    return res.json({ courses });
+  } catch (error) {
+    console.error("Course list API error:", error);
+    return res.status(500).json({
+      message: "Unable to load courses right now.",
+    });
+  }
 }
 
 async function getStudentResult(req, res) {
@@ -61,6 +77,7 @@ async function uploadTeacherResults(req, res) {
 }
 
 module.exports = {
+  getCourses,
   getHealth,
   getStudentResult,
   uploadTeacherResults,

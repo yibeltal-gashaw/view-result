@@ -9,6 +9,8 @@ const defaultYearMap = {
 const defaultCourseMap = {
   fss: "Fundamentals of Software Security",
   fds: "Fundamentals of Distributed Systems",
+  cloud: "fundamentals of cloud computing",
+  mad: "Mobile Application Development",
 };
 
 function parseEnvMap(value, fallback) {

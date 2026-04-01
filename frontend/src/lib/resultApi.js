@@ -23,6 +23,22 @@ export function getResultEndpoint(studentId, year, course) {
   return queryString ? `${basePath}?${queryString}` : basePath;
 }
 
+export function getCoursesEndpoint() {
+  return API_BASE_URL ? `${API_BASE_URL}/api/courses` : "/api/courses";
+}
+
+export async function fetchCourses() {
+  const response = await fetch(getCoursesEndpoint(), {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+  const data = await readApiResponse(response);
+
+  return Array.isArray(data?.courses) ? data.courses : [];
+}
+
 export async function readApiResponse(response) {
   const rawText = await response.text();
   const contentType = response.headers.get("content-type") || "";

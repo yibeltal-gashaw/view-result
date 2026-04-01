@@ -1,5 +1,9 @@
 const COURSE_MAP = {
   fss: "Fundamentals of Software Security",
+  fds: "Fundamentals of Distributed Systems",
+  cloud: "Fundamentals of cloud computing",
+  mad: "Mobile Application Development",
+  fre: "Fundamentals of Requirements Engineering",
 };
 
 const YEAR_MAP = {

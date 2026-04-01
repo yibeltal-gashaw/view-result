@@ -1,6 +1,7 @@
-import { courseOptions, yearOptions } from "../config/resultOptions";
+import { yearOptions } from "../config/resultOptions";
 
 function ResultSearchForm({
+  courseOptions,
   inputValue,
   selectedCourse,
   selectedYear,

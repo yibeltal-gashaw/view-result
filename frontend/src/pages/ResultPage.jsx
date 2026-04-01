@@ -2,10 +2,18 @@ import { useEffect, useState } from "react";
 import male from "../assets/male.png";
 import female from "../assets/female.png";
 import ResultSearchForm from "../components/ResultSearchForm";
-import { getCourseLabel, getYearLabel, scoreItems } from "../config/resultOptions";
-import { getResultEndpoint, readApiResponse } from "../lib/resultApi";
 import {
-  getCourseFromQuery,
+  courseOptions as fallbackCourseOptions,
+  getCourseLabel,
+  getYearLabel,
+  scoreItems,
+} from "../config/resultOptions";
+import {
+  fetchCourses,
+  getResultEndpoint,
+  readApiResponse,
+} from "../lib/resultApi";
+import {
   getStudentIdFromQuery,
   getYearFromQuery,
   normalizeStudentId,
@@ -13,19 +21,22 @@ import {
 } from "../lib/resultQuery";
 
 function ResultPage() {
+  const [availableCourses, setAvailableCourses] = useState(fallbackCourseOptions);
   const [studentId, setStudentId] = useState(() => getStudentIdFromQuery());
   const [inputValue, setInputValue] = useState(() => getStudentIdFromQuery());
   const [selectedYear, setSelectedYear] = useState(() => getYearFromQuery());
   const [submittedYear, setSubmittedYear] = useState(() => getYearFromQuery());
   const [selectedCourse, setSelectedCourse] = useState(() =>
-    getCourseFromQuery(),
+    getInitialCourse(fallbackCourseOptions),
   );
   const [submittedCourse, setSubmittedCourse] = useState(() =>
-    getCourseFromQuery(),
+    getInitialCourse(fallbackCourseOptions),
   );
   const [result, setResult] = useState(null);
   const [status, setStatus] = useState(
-    studentId && getYearFromQuery() && getCourseFromQuery() ? "loading" : "idle",
+    studentId && getYearFromQuery() && getInitialCourse(fallbackCourseOptions)
+      ? "loading"
+      : "idle",
   );
   const [error, setError] = useState("");
   const displayStatus =
@@ -41,6 +52,40 @@ function ResultPage() {
         ...item,
         value: result?.breakdown?.[item.key],
       }));
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCourses() {
+      try {
+        const courses = await fetchCourses();
+
+        if (cancelled || courses.length === 0) {
+          return;
+        }
+
+        const requestedCourse = getInitialCourse(courses);
+
+        setAvailableCourses(courses);
+        setSelectedCourse((currentValue) =>
+          hasCourseOption(courses, currentValue) ? currentValue : requestedCourse,
+        );
+        setSubmittedCourse((currentValue) =>
+          hasCourseOption(courses, currentValue) ? currentValue : requestedCourse,
+        );
+      } catch (loadError) {
+        if (!cancelled) {
+          setAvailableCourses(fallbackCourseOptions);
+        }
+      }
+    }
+
+    loadCourses();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!studentId || !submittedYear || !submittedCourse) {
@@ -144,6 +189,7 @@ function ResultPage() {
           </div>
 
           <ResultSearchForm
+            courseOptions={availableCourses}
             inputValue={inputValue}
             selectedCourse={selectedCourse}
             selectedYear={selectedYear}
@@ -257,6 +303,21 @@ function ResultPage() {
       </div>
     </main>
   );
+}
+
+function getInitialCourse(courseOptions) {
+  const params = new URLSearchParams(window.location.search);
+  const requestedCourse = (params.get("course") || "").trim().toLowerCase();
+
+  if (requestedCourse && hasCourseOption(courseOptions, requestedCourse)) {
+    return requestedCourse;
+  }
+
+  return courseOptions[0]?.value || "";
+}
+
+function hasCourseOption(courseOptions, courseCode) {
+  return courseOptions.some((course) => course.value === courseCode);
 }
 
 export default ResultPage;

@@ -50,6 +50,21 @@ async function findStudent(studentId, options = {}) {
   };
 }
 
+async function listCourses() {
+  const courseCodes = await Result.distinct("course", {
+    course: { $exists: true, $ne: "" },
+  });
+
+  return courseCodes
+    .map((courseCode) => normalizeOptionalText(courseCode).toLowerCase())
+    .filter(Boolean)
+    .sort((left, right) => left.localeCompare(right))
+    .map((courseCode) => ({
+      value: courseCode,
+      label: COURSE_MAP[courseCode] || humanizeAssessmentLabel(courseCode),
+    }));
+}
+
 function formatStudentResult(record, options = {}) {
   const { student = {}, result = {} } = record || {};
   const requestedYear = resolveMappedValue(options.year, YEAR_MAP);
@@ -203,4 +218,5 @@ function buildFallbackStudent(studentId) {
 module.exports = {
   findStudent,
   formatStudentResult,
+  listCourses,
 };

@@ -2,7 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const { createBot } = require("./bot/createBot");
 const { connectToDatabase } = require("./config/database");
-const corsMiddleware = require("./middleware/cors");
+const { ensureAdminUser } = require("./services/authService");
 const resultRoutes = require("./routes/resultRoutes");
 const cors = require("cors");
 
@@ -12,6 +12,7 @@ const bot = createBot();
 
 async function startServer() {
   await connectToDatabase();
+  await ensureAdminUser();
 
   app.use(express.json());
   app.use(
@@ -21,7 +22,7 @@ async function startServer() {
         "http://localhost:5173",
       ],
       methods: ["GET", "POST", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "x-teacher-token"],
+      allowedHeaders: ["Content-Type", "Authorization"],
       credentials: true,
     }),
   );

@@ -1,11 +1,30 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { loginTeacher } from "../lib/teacherAuthApi";
 
 function TeacherLoginPage() {
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [status, setStatus] = useState("idle");
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
-    navigate("/teachers/dashboard");
+
+    setStatus("loading");
+    setError("");
+
+    try {
+      await loginTeacher({ email, password });
+      navigate("/teachers/dashboard");
+    } catch (loginError) {
+      setError(loginError.message || "Unable to login.");
+      setStatus("error");
+      return;
+    }
+
+    setStatus("success");
   }
 
   return (
@@ -76,6 +95,8 @@ function TeacherLoginPage() {
                 className="min-h-14 rounded-[18px] border border-white/10 bg-slate-950/70 px-4 text-slate-50 outline-none transition duration-200 ease-out placeholder:text-slate-500 focus:-translate-y-px focus:border-sky-400/80 focus:shadow-[0_0_0_4px_rgba(56,189,248,0.12)]"
                 type="email"
                 placeholder="teacher@hilcoe.edu.et"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
               />
             </label>
 
@@ -87,8 +108,16 @@ function TeacherLoginPage() {
                 className="min-h-14 rounded-[18px] border border-white/10 bg-slate-950/70 px-4 text-slate-50 outline-none transition duration-200 ease-out placeholder:text-slate-500 focus:-translate-y-px focus:border-sky-400/80 focus:shadow-[0_0_0_4px_rgba(56,189,248,0.12)]"
                 type="password"
                 placeholder="Enter your password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
               />
             </label>
+
+            {error ? (
+              <div className="rounded-[18px] border border-rose-400/30 bg-rose-400/10 p-4 text-sm leading-6 text-rose-100">
+                {error}
+              </div>
+            ) : null}
 
             <div className="flex items-center justify-between gap-3 text-sm text-slate-300">
               <label className="flex items-center gap-2">
@@ -110,7 +139,7 @@ function TeacherLoginPage() {
               className="mt-2 min-h-14 rounded-[18px] bg-linear-to-r from-amber-300 via-amber-500 to-orange-500 px-6 font-bold text-stone-950 shadow-[0_18px_38px_rgba(245,158,11,0.24)] transition duration-200 ease-out hover:-translate-y-px hover:brightness-105 hover:shadow-[0_22px_42px_rgba(245,158,11,0.3)]"
               type="submit"
             >
-              Login
+              {status === "loading" ? "Signing In..." : "Login"}
             </button>
           </form>
 

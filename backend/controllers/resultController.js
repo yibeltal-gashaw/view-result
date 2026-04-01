@@ -3,6 +3,7 @@ const {
   formatStudentResult,
   listCourses,
 } = require("../services/resultService");
+const { createUser, loginUser } = require("../services/authService");
 const { uploadCourseResults } = require("../services/uploadService");
 const { normalizeOptionalText, normalizeStudentId } = require("../utils/text");
 
@@ -75,9 +76,36 @@ async function uploadTeacherResults(req, res) {
   }
 }
 
+async function login(req, res) {
+  try {
+    console.log("Login request body:", req.body);
+    const result = await loginUser(req.body);
+    return res.status(result.status).json(result.body);
+  } catch (error) {
+    console.error("Login API error:", error);
+    return res.status(500).json({
+      message: "Unable to login right now.",
+    });
+  }
+}
+
+async function createTeacherAccount(req, res) {
+  try {
+    const result = await createUser(req.user, req.body);
+    return res.status(result.status).json(result.body);
+  } catch (error) {
+    console.error("Create user API error:", error);
+    return res.status(500).json({
+      message: "Unable to create user account right now.",
+    });
+  }
+}
+
 module.exports = {
+  createTeacherAccount,
   getCourses,
   getHealth,
   getStudentResult,
+  login,
   uploadTeacherResults,
 };

@@ -1,0 +1,103 @@
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "";
+
+const TEACHER_AUTH_STORAGE_KEY = "teacher_auth_session";
+
+export function getTeacherLoginEndpoint() {
+  return API_BASE_URL ? `${API_BASE_URL}/api/auth/login` : "/api/auth/login";
+}
+
+export function getTeacherUploadEndpoint() {
+  return API_BASE_URL
+    ? `${API_BASE_URL}/api/teacher/results/upload`
+    : "/api/teacher/results/upload";
+}
+
+export async function loginTeacher({ email, password }) {
+  const response = await fetch(getTeacherLoginEndpoint(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email, password }),
+  });
+
+  const data = await readJsonResponse(response);
+
+  if (!response.ok) {
+    throw buildApiError(data, "Unable to login.");
+  }
+
+  persistTeacherSession(data);
+  return data;
+}
+
+export async function uploadTeacherResults({ token, payload }) {
+  const response = await fetch(getTeacherUploadEndpoint(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await readJsonResponse(response);
+
+  if (!response.ok) {
+    throw buildApiError(data, "Unable to upload course results.");
+  }
+
+  return data;
+}
+
+export function persistTeacherSession(session) {
+  window.localStorage.setItem(
+    TEACHER_AUTH_STORAGE_KEY,
+    JSON.stringify({
+      token: session?.token || "",
+      user: session?.user || null,
+    }),
+  );
+}
+
+export function readTeacherSession() {
+  const rawValue = window.localStorage.getItem(TEACHER_AUTH_STORAGE_KEY);
+
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    const parsedValue = JSON.parse(rawValue);
+    return parsedValue?.token ? parsedValue : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearTeacherSession() {
+  window.localStorage.removeItem(TEACHER_AUTH_STORAGE_KEY);
+}
+
+function buildApiError(data, fallbackMessage) {
+  const error = new Error(data?.message || fallbackMessage);
+  error.errors = Array.isArray(data?.errors) ? data.errors : [];
+  error.status = data?.status;
+  error.payload = data;
+  return error;
+}
+
+async function readJsonResponse(response) {
+  const rawText = await response.text();
+
+  if (!rawText) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    return null;
+  }
+}

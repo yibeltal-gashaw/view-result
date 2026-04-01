@@ -165,11 +165,11 @@ function prepareUploadRow(rawRow, options) {
     };
   }
 
-  if (total === null) {
-    return {
-      error: buildRowError(options.rowIndex, "Total must be numeric."),
-    };
-  }
+  // if (total === null) {
+  //   return {
+  //     error: buildRowError(options.rowIndex, "Total must be numeric."),
+  //   };
+  // }
 
   return {
     studentDocument: {

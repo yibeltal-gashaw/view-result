@@ -1,6 +1,10 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { uploadTeacherResults } from "../lib/teacherUploadApi";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  clearTeacherSession,
+  readTeacherSession,
+  uploadTeacherResults,
+} from "../lib/teacherAuthApi";
 
 const SAMPLE_HEADERS = [
   "Student ID",
@@ -49,10 +53,11 @@ const RESERVED_HEADERS = new Set([
 ]);
 
 function TeacherDashboardPage() {
+  const navigate = useNavigate();
   const [fileName, setFileName] = useState("");
   const [headers, setHeaders] = useState([]);
   const [rows, setRows] = useState([]);
-  const [teacherToken, setTeacherToken] = useState("");
+  const [teacherSession, setTeacherSession] = useState(() => readTeacherSession());
   const [defaultCourse, setDefaultCourse] = useState("");
   const [defaultYear, setDefaultYear] = useState("");
   const [error, setError] = useState("");
@@ -93,7 +98,18 @@ function TeacherDashboardPage() {
     assessmentHeaders.length > 0 &&
     Boolean(resolvedCourse) &&
     Boolean(resolvedYear) &&
-    Boolean(teacherToken.trim());
+    Boolean(teacherSession?.token);
+
+  useEffect(() => {
+    const session = readTeacherSession();
+
+    if (!session?.token) {
+      navigate("/teachers/login");
+      return;
+    }
+
+    setTeacherSession(session);
+  }, [navigate]);
 
   async function handleFileChange(event) {
     const [file] = Array.from(event.target.files || []);
@@ -182,9 +198,9 @@ function TeacherDashboardPage() {
       return;
     }
 
-    if (!teacherToken.trim()) {
+    if (!teacherSession?.token) {
       setUploadStatus("error");
-      setError("Enter the teacher token before uploading.");
+      setError("Login as a teacher before uploading.");
       setUploadErrors([]);
       return;
     }
@@ -196,7 +212,7 @@ function TeacherDashboardPage() {
 
     try {
       const result = await uploadTeacherResults({
-        token: teacherToken.trim(),
+        token: teacherSession.token,
         payload: payloadPreview,
       });
 
@@ -228,6 +244,11 @@ function TeacherDashboardPage() {
     URL.revokeObjectURL(url);
   }
 
+  function handleLogout() {
+    clearTeacherSession();
+    navigate("/teachers/login");
+  }
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(234,179,8,0.14),transparent_28%),radial-gradient(circle_at_85%_10%,rgba(14,165,233,0.2),transparent_30%),linear-gradient(135deg,#120f0d_0%,#1f1b18_45%,#111827_100%)] px-4 py-7 text-slate-50">
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02),rgba(255,255,255,0.02)),radial-gradient(circle_at_center,transparent_0_62%,rgba(0,0,0,0.16)_100%)] opacity-85" />
@@ -253,6 +274,13 @@ function TeacherDashboardPage() {
               onClick={handleDownloadTemplate}
             >
               Download Sample CSV
+            </button>
+            <button
+              className="min-h-12 rounded-full border border-white/12 bg-white/6 px-5 py-3 font-semibold text-slate-100 transition duration-200 ease-out hover:-translate-y-px hover:border-rose-400/45 hover:bg-rose-400/10"
+              type="button"
+              onClick={handleLogout}
+            >
+              Logout
             </button>
             <Link
               className="min-h-12 rounded-full border border-white/12 bg-white/6 px-5 py-3 font-semibold text-slate-100 transition duration-200 ease-out hover:-translate-y-px hover:border-sky-400/45 hover:bg-sky-400/10"
@@ -295,16 +323,15 @@ function TeacherDashboardPage() {
             </label>
 
             <div className="mt-6 grid gap-3">
-              <label className="rounded-[22px] border border-white/8 bg-white/5 p-4">
-                <span className="text-sm text-slate-400">Teacher token</span>
-                <input
-                  className="mt-2 block w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-base text-slate-50 outline-none transition focus:border-sky-400/45"
-                  type="password"
-                  value={teacherToken}
-                  onChange={(event) => setTeacherToken(event.target.value)}
-                  placeholder="Enter x-teacher-token"
-                />
-              </label>
+              <div className="rounded-[22px] border border-white/8 bg-white/5 p-4">
+                <span className="text-sm text-slate-400">Logged in as</span>
+                <strong className="mt-2 block text-base text-slate-50">
+                  {teacherSession?.user?.email || "Teacher session not found"}
+                </strong>
+                <span className="mt-1 block text-xs uppercase tracking-[0.16em] text-slate-400">
+                  {teacherSession?.user?.role || "No role"}
+                </span>
+              </div>
 
               <div className="rounded-[22px] border border-white/8 bg-white/5 p-4">
                 <span className="text-sm text-slate-400">Current file</span>

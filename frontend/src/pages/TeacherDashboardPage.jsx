@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   clearTeacherSession,
+  createTeacherAccount,
   readTeacherSession,
   uploadTeacherResults,
 } from "../lib/teacherAuthApi";
@@ -58,6 +59,13 @@ function TeacherDashboardPage() {
   const [headers, setHeaders] = useState([]);
   const [rows, setRows] = useState([]);
   const [teacherSession, setTeacherSession] = useState(() => readTeacherSession());
+  const [showRegisterTeacher, setShowRegisterTeacher] = useState(false);
+  const [teacherEmail, setTeacherEmail] = useState("");
+  const [teacherPassword, setTeacherPassword] = useState("");
+  const [teacherRole, setTeacherRole] = useState("TEACHER");
+  const [teacherCreateStatus, setTeacherCreateStatus] = useState("idle");
+  const [teacherCreateError, setTeacherCreateError] = useState("");
+  const [teacherCreateSuccess, setTeacherCreateSuccess] = useState("");
   const [defaultCourse, setDefaultCourse] = useState("");
   const [defaultYear, setDefaultYear] = useState("");
   const [error, setError] = useState("");
@@ -99,6 +107,7 @@ function TeacherDashboardPage() {
     Boolean(resolvedCourse) &&
     Boolean(resolvedYear) &&
     Boolean(teacherSession?.token);
+  const isAdmin = teacherSession?.user?.role === "ADMIN";
 
   useEffect(() => {
     const session = readTeacherSession();
@@ -249,49 +258,147 @@ function TeacherDashboardPage() {
     navigate("/teachers/login");
   }
 
+  async function handleCreateTeacher(event) {
+    event.preventDefault();
+
+    if (!teacherSession?.token) {
+      setTeacherCreateStatus("error");
+      setTeacherCreateError("Login again to continue.");
+      setTeacherCreateSuccess("");
+      return;
+    }
+
+    setTeacherCreateStatus("loading");
+    setTeacherCreateError("");
+    setTeacherCreateSuccess("");
+
+    try {
+      const result = await createTeacherAccount({
+        token: teacherSession.token,
+        payload: {
+          email: teacherEmail,
+          password: teacherPassword,
+          role: teacherRole,
+        },
+      });
+
+      setTeacherCreateStatus("success");
+      setTeacherCreateError("");
+      setTeacherCreateSuccess(
+        `${result?.user?.email || teacherEmail} created as ${result?.user?.role || teacherRole}.`,
+      );
+      setTeacherEmail("");
+      setTeacherPassword("");
+      setTeacherRole("TEACHER");
+    } catch (createError) {
+      setTeacherCreateStatus("error");
+      setTeacherCreateError(
+        createError.message || "Unable to create teacher account.",
+      );
+      setTeacherCreateSuccess("");
+    }
+  }
+
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(234,179,8,0.14),transparent_28%),radial-gradient(circle_at_85%_10%,rgba(14,165,233,0.2),transparent_30%),linear-gradient(135deg,#120f0d_0%,#1f1b18_45%,#111827_100%)] px-4 py-7 text-slate-50">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(234,179,8,0.14),transparent_28%),radial-gradient(circle_at_85%_10%,rgba(14,165,233,0.2),transparent_30%),linear-gradient(135deg,#120f0d_0%,#1f1b18_45%,#111827_100%)] text-slate-50">
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02),rgba(255,255,255,0.02)),radial-gradient(circle_at_center,transparent_0_62%,rgba(0,0,0,0.16)_100%)] opacity-85" />
-      <div className="relative mx-auto w-full max-w-7xl">
-        <section className="mb-5 grid gap-5 rounded-4xl border border-amber-50/10 bg-slate-950/45 p-7 shadow-[0_28px_90px_rgba(3,7,18,0.38)] backdrop-blur-[18px] lg:grid-cols-[minmax(0,1.1fr)_auto] lg:items-center">
+      <div className="relative grid min-h-screen lg:grid-cols-[290px_minmax(0,1fr)]">
+        <aside className="border-b border-white/8 bg-slate-950/75 p-6 backdrop-blur-xl lg:border-b-0 lg:border-r">
           <div>
             <p className="text-[0.72rem] uppercase tracking-[0.16em] text-slate-400">
               Teachers Dashboard
             </p>
-            <h1 className="mt-3 max-w-[14ch] font-serif text-[clamp(2.4rem,5vw,4rem)] leading-[0.96] tracking-[-0.04em] text-slate-50">
-              Upload different course results with different assessments.
+            <h1 className="mt-3 font-serif text-4xl leading-[0.95] tracking-[-0.04em] text-slate-50">
+              Result Control
             </h1>
-            <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-300">
-              Drop in a course CSV, inspect the detected assessment headers, and
-              send the parsed batch to the backend as JSON without reshaping it by hand.
+            <p className="mt-4 text-sm leading-7 text-slate-300">
+              Upload different course results, manage assessment structures, and
+              control teacher access from one protected workspace.
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <button
-              className="min-h-12 rounded-full bg-linear-to-r from-amber-300 via-amber-500 to-orange-500 px-5 font-bold text-stone-950 shadow-[0_18px_38px_rgba(245,158,11,0.24)] transition duration-200 ease-out hover:-translate-y-px hover:brightness-105 hover:shadow-[0_22px_42px_rgba(245,158,11,0.3)]"
-              type="button"
-              onClick={handleDownloadTemplate}
-            >
-              Download Sample CSV
-            </button>
-            <button
-              className="min-h-12 rounded-full border border-white/12 bg-white/6 px-5 py-3 font-semibold text-slate-100 transition duration-200 ease-out hover:-translate-y-px hover:border-rose-400/45 hover:bg-rose-400/10"
-              type="button"
-              onClick={handleLogout}
-            >
-              Logout
-            </button>
-            <Link
-              className="min-h-12 rounded-full border border-white/12 bg-white/6 px-5 py-3 font-semibold text-slate-100 transition duration-200 ease-out hover:-translate-y-px hover:border-sky-400/45 hover:bg-sky-400/10"
-              to="/teachers/login"
-            >
-              Back to Login
-            </Link>
+          <div className="mt-8 rounded-3xl border border-white/8 bg-white/5 p-5">
+            <span className="text-xs uppercase tracking-[0.16em] text-slate-400">
+              Logged In As
+            </span>
+            <strong className="mt-3 block wrap-break-word text-lg text-slate-50">
+              {teacherSession?.user?.email || "Teacher session not found"}
+            </strong>
+            <span className="mt-2 inline-flex rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-semibold tracking-[0.14em] text-emerald-100">
+              {teacherSession?.user?.role || "No role"}
+            </span>
           </div>
-        </section>
 
-        <section className="grid gap-5 xl:grid-cols-[minmax(0,430px)_minmax(0,1fr)]">
+          <div className="mt-6 grid gap-3">
+            <SidebarCard
+              title="CSV Upload"
+              description="Parse files first, detect assessment columns, and send JSON batches safely."
+            />
+            <SidebarCard
+              title="Validation"
+              description="Catch missing columns and row-level issues before anything reaches the database."
+            />
+            <SidebarCard
+              title="Course Aware"
+              description="Handle different courses with different assessment structures from the same dashboard."
+            />
+          </div>
+        </aside>
+
+        <div className="min-w-0 px-4 py-5 sm:px-6">
+          <header className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-[28px] border border-amber-50/10 bg-slate-950/45 p-5 shadow-[0_28px_90px_rgba(3,7,18,0.38)] backdrop-blur-[18px]">
+            <div>
+              <p className="text-[0.72rem] uppercase tracking-[0.16em] text-slate-400">
+                Main Content
+              </p>
+              <h2 className="mt-2 font-serif text-3xl text-slate-50">
+                Teacher Operations
+              </h2>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="inline-flex min-h-12 items-center gap-3 rounded-full border border-white/12 bg-white/6 px-4 py-2 text-slate-100">
+                <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.85)]" />
+                <div className="leading-tight">
+                  <p className="text-[0.68rem] uppercase tracking-[0.16em] text-slate-400">
+                    Notifications
+                  </p>
+                  <p className="text-sm font-semibold text-slate-100">
+                    {uploadErrors.length > 0
+                      ? `${uploadErrors.length} issues need review`
+                      : successMessage
+                        ? "Latest upload completed"
+                        : "System ready"}
+                  </p>
+                </div>
+              </div>
+              <button
+                className="min-h-12 rounded-full bg-linear-to-r from-amber-300 via-amber-500 to-orange-500 px-5 font-bold text-stone-950 shadow-[0_18px_38px_rgba(245,158,11,0.24)] transition duration-200 ease-out hover:-translate-y-px hover:brightness-105 hover:shadow-[0_22px_42px_rgba(245,158,11,0.3)]"
+                type="button"
+                onClick={handleDownloadTemplate}
+              >
+                Download Sample CSV
+              </button>
+              {isAdmin ? (
+                <button
+                  className="min-h-12 rounded-full border border-white/12 bg-white/6 px-5 py-3 font-semibold text-slate-100 transition duration-200 ease-out hover:-translate-y-px hover:border-emerald-400/45 hover:bg-emerald-400/10"
+                  type="button"
+                  onClick={() => setShowRegisterTeacher(true)}
+                >
+                  Register Teacher
+                </button>
+              ) : null}
+              <button
+                className="min-h-12 rounded-full border border-white/12 bg-white/6 px-5 py-3 font-semibold text-slate-100 transition duration-200 ease-out hover:-translate-y-px hover:border-rose-400/45 hover:bg-rose-400/10"
+                type="button"
+                onClick={handleLogout}
+              >
+                Logout
+              </button>
+            </div>
+          </header>
+
+          <section className="grid gap-5 xl:grid-cols-[minmax(0,430px)_minmax(0,1fr)]">
           <article className="rounded-[28px] border border-amber-50/10 bg-slate-950/50 p-6 shadow-[0_28px_90px_rgba(3,7,18,0.38)] backdrop-blur-[18px]">
             <p className="text-[0.72rem] uppercase tracking-[0.16em] text-slate-400">
               Upload Center
@@ -581,8 +688,115 @@ function TeacherDashboardPage() {
             </section>
           </div>
         </section>
+        </div>
       </div>
+
+      {isAdmin && showRegisterTeacher ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm">
+          <div className="absolute inset-0" onClick={() => setShowRegisterTeacher(false)} />
+          <section className="relative w-full max-w-3xl rounded-[30px] border border-amber-50/10 bg-slate-950/95 p-6 shadow-[0_28px_90px_rgba(3,7,18,0.5)] backdrop-blur-[18px]">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-[0.72rem] uppercase tracking-[0.16em] text-slate-400">
+                  Admin Actions
+                </p>
+                <h2 className="mt-2 font-serif text-3xl text-slate-50">
+                  Register Teacher
+                </h2>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+                  Create new teacher or admin accounts without leaving the dashboard.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="rounded-full bg-emerald-400/15 px-4 py-2 text-xs font-medium tracking-[0.16em] text-emerald-100">
+                  Admin Only
+                </span>
+                <button
+                  className="rounded-full border border-white/12 bg-white/6 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-rose-400/45 hover:bg-rose-400/10"
+                  type="button"
+                  onClick={() => setShowRegisterTeacher(false)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
+            <form className="mt-6 grid gap-4 md:grid-cols-2" onSubmit={handleCreateTeacher}>
+              <label className="grid gap-2">
+                <span className="text-sm font-medium text-slate-200">
+                  Teacher Email
+                </span>
+                <input
+                  className="min-h-14 rounded-[18px] border border-white/10 bg-slate-950/70 px-4 text-slate-50 outline-none transition duration-200 ease-out placeholder:text-slate-500 focus:-translate-y-px focus:border-sky-400/80 focus:shadow-[0_0_0_4px_rgba(56,189,248,0.12)]"
+                  type="email"
+                  placeholder="teacher@school.edu"
+                  value={teacherEmail}
+                  onChange={(event) => setTeacherEmail(event.target.value)}
+                />
+              </label>
+
+              <label className="grid gap-2">
+                <span className="text-sm font-medium text-slate-200">
+                  Temporary Password
+                </span>
+                <input
+                  className="min-h-14 rounded-[18px] border border-white/10 bg-slate-950/70 px-4 text-slate-50 outline-none transition duration-200 ease-out placeholder:text-slate-500 focus:-translate-y-px focus:border-sky-400/80 focus:shadow-[0_0_0_4px_rgba(56,189,248,0.12)]"
+                  type="password"
+                  placeholder="Create a password"
+                  value={teacherPassword}
+                  onChange={(event) => setTeacherPassword(event.target.value)}
+                />
+              </label>
+
+              <label className="grid gap-2">
+                <span className="text-sm font-medium text-slate-200">
+                  Role
+                </span>
+                <select
+                  className="min-h-14 rounded-[18px] border border-white/10 bg-slate-950/70 px-4 text-slate-50 outline-none transition duration-200 ease-out focus:-translate-y-px focus:border-sky-400/80 focus:shadow-[0_0_0_4px_rgba(56,189,248,0.12)]"
+                  value={teacherRole}
+                  onChange={(event) => setTeacherRole(event.target.value)}
+                >
+                  <option value="TEACHER">Teacher</option>
+                  <option value="ADMIN">Admin</option>
+                </select>
+              </label>
+
+              <div className="grid content-end">
+                <button
+                  className="min-h-14 rounded-[18px] bg-linear-to-r from-emerald-300 via-emerald-400 to-sky-400 px-6 font-bold text-slate-950 shadow-[0_18px_38px_rgba(52,211,153,0.2)] transition duration-200 ease-out hover:-translate-y-px hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                  type="submit"
+                  disabled={teacherCreateStatus === "loading"}
+                >
+                  {teacherCreateStatus === "loading" ? "Creating..." : "Create Account"}
+                </button>
+              </div>
+            </form>
+
+            {teacherCreateError ? (
+              <div className="mt-5 rounded-[22px] border border-rose-400/30 bg-rose-400/10 p-4 text-sm leading-6 text-rose-100">
+                {teacherCreateError}
+              </div>
+            ) : null}
+
+            {teacherCreateSuccess ? (
+              <div className="mt-5 rounded-[22px] border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm leading-6 text-emerald-100">
+                {teacherCreateSuccess}
+              </div>
+            ) : null}
+          </section>
+        </div>
+      ) : null}
     </main>
+  );
+}
+
+function SidebarCard({ title, description }) {
+  return (
+    <article className="rounded-3xl border border-white/8 bg-white/5 p-5">
+      <h3 className="text-base font-semibold text-slate-50">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-slate-300">{description}</p>
+    </article>
   );
 }
 

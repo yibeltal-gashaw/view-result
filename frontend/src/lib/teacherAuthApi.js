@@ -13,6 +13,10 @@ export function getTeacherUploadEndpoint() {
     : "/api/teacher/results/upload";
 }
 
+export function getAdminUsersEndpoint() {
+  return API_BASE_URL ? `${API_BASE_URL}/api/admin/users` : "/api/admin/users";
+}
+
 export async function loginTeacher({ email, password }) {
   const response = await fetch(getTeacherLoginEndpoint(), {
     method: "POST",
@@ -46,6 +50,25 @@ export async function uploadTeacherResults({ token, payload }) {
 
   if (!response.ok) {
     throw buildApiError(data, "Unable to upload course results.");
+  }
+
+  return data;
+}
+
+export async function createTeacherAccount({ token, payload }) {
+  const response = await fetch(getAdminUsersEndpoint(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await readJsonResponse(response);
+
+  if (!response.ok) {
+    throw buildApiError(data, "Unable to create teacher account.");
   }
 
   return data;

@@ -26,42 +26,53 @@ async function ensureAdminUser() {
   const email = normalizeEmail(process.env.ADMIN_EMAIL);
   const password = String(process.env.ADMIN_PASSWORD || "").trim();
 
+  console.log("Ensuring admin user:", { email: email ? "set" : "not set", password: password ? "set" : "not set" });
+
   if (!email || !password) {
+    console.log("Admin credentials not set, skipping admin user creation");
     return;
   }
 
   const userModel = getUserModel();
   if (!userModel) {
+    console.log("User model not available, cannot create admin user");
     return;
   }
 
-  const existingAdmin = await userModel.findUnique({
-    where: {
-      email,
-    },
-  });
+  try {
+    const existingAdmin = await userModel.findUnique({
+      where: {
+        email,
+      },
+    });
 
-  if (existingAdmin) {
-    return;
+    if (existingAdmin) {
+      console.log("Admin user already exists");
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    await userModel.create({
+      data: {
+        email,
+        passwordHash,
+        role: USER_ROLES.ADMIN,
+      },
+    });
+
+    console.log(`Bootstrapped admin user: ${email}`);
+  } catch (error) {
+    console.error("Error creating admin user:", error);
   }
-
-  const passwordHash = await bcrypt.hash(password, 10);
-
-  await userModel.create({
-    data: {
-      email,
-      passwordHash,
-      role: USER_ROLES.ADMIN,
-    },
-  });
-
-  console.log(`Bootstrapped admin user: ${email}`);
 }
 
 async function loginUser(payload = {}) {
   const { email, password } = payload;
   const normalizedEmail = normalizeEmail(email);
   const normalizedPassword = String(password || "");
+
+  console.log("Login attempt for:", normalizedEmail);
 
   if (!normalizedEmail || !normalizedPassword) {
     return {
@@ -83,42 +94,51 @@ async function loginUser(payload = {}) {
     };
   }
 
-  const user = await userModel.findUnique({
-    where: {
-      email: normalizedEmail,
-    },
-  });
+  try {
+    const user = await userModel.findUnique({
+      where: {
+        email: normalizedEmail,
+      },
+    });
 
-  if (!user) {
+    console.log("User found:", user ? "yes" : "no");
+
+    if (!user) {
+      return {
+        status: 401,
+        body: {
+          message: "Invalid email or password.",
+        },
+      };
+    }
+
+    const isValidPassword = await bcrypt.compare(
+      normalizedPassword,
+      user.passwordHash,
+    );
+
+    console.log("Password valid:", isValidPassword);
+
+    if (!isValidPassword) {
+      return {
+        status: 401,
+        body: {
+          message: "Invalid email or password.",
+        },
+      };
+    }
+
     return {
-      status: 401,
+      status: 200,
       body: {
-        message: "Invalid email or password.",
+        token: signUserToken(user),
+        user: buildPublicUser(user),
       },
     };
+  } catch (error) {
+    console.error("Error in loginUser:", error);
+    throw error;
   }
-
-  const isValidPassword = await bcrypt.compare(
-    normalizedPassword,
-    user.passwordHash,
-  );
-
-  if (!isValidPassword) {
-    return {
-      status: 401,
-      body: {
-        message: "Invalid email or password.",
-      },
-    };
-  }
-
-  return {
-    status: 200,
-    body: {
-      token: signUserToken(user),
-      user: buildPublicUser(user),
-    },
-  };
 }
 
 async function createUser(currentUser, payload = {}) {

@@ -1,7 +1,31 @@
+import { useState } from "react";
 import hero from "../assets/hero.png";
 import logo from "../assets/logo.png";
 
 function WelcomePage({ onGetStarted, onTeacherLogin }) {
+  const faqItems = [
+  {
+    question: "How do I check my exam results?",
+    answer:
+      "Just enter your year, course, and student ID in the search box. Your result slip pops up instantly—no waiting around!",
+  },
+  {
+    question: "Is my personal info safe?",
+    answer:
+      "Yep! Only teachers with secure login can see data, and everything you send or receive is protected with HTTPS encryption.",
+  },
+  {
+    question: "How soon are results updated?",
+    answer:
+      "As soon as teachers upload them! Most results show up right after grading is done for each exam session.",
+  },
+];
+
+  const [openIndex, setOpenIndex] = useState(null);
+  const toggleFaq = (index) => {
+    setOpenIndex((current) => (current === index ? null : index));
+  };
+
   return (
     <>
       <header className="mb-6 flex items-center justify-between rounded-4xl border border-amber-50/10 bg-slate-950/45 px-5 py-4 shadow-[0_12px_30px_rgba(3,7,18,0.35)] backdrop-blur-[14px]">
@@ -11,7 +35,7 @@ function WelcomePage({ onGetStarted, onTeacherLogin }) {
         </div>
         <nav className="flex items-center gap-6 text-sm font-medium text-slate-200">
           <a href="#features" className="transition hover:text-white">Features</a>
-          <a href="#why" className="transition hover:text-white">Why Us</a>
+          <a href="#faq" className="transition hover:text-white">FAQ</a>
           <a href="#contact" className="rounded-full border border-amber-200 px-4 py-2 text-amber-200 transition hover:bg-amber-200/20 hover:text-white">Contact</a>
           <button
             type="button"
@@ -70,19 +94,29 @@ function WelcomePage({ onGetStarted, onTeacherLogin }) {
         </div>
       </section>
 
-      <section id="why" className="mb-6 rounded-4xl border border-amber-50/10 bg-slate-900/55 p-6 shadow-[0_20px_60px_rgba(3,7,18,0.35)] backdrop-blur-[14px]">
-        <h2 className="mb-4 text-center text-2xl font-semibold text-amber-200">Why ExamResult?</h2>
-        <ul className="mx-auto max-w-4xl space-y-3 text-slate-300">
-          <li className="rounded-xl border border-slate-700 bg-slate-950/80 p-4">
-            <strong className="text-sky-200">Reliability:</strong> Data is served quickly from a robust database with filters to show exactly what students need.
-          </li>
-          <li className="rounded-xl border border-slate-700 bg-slate-950/80 p-4">
-            <strong className="text-sky-200">Transparency:</strong> Full score breakdowns and grade insights help students understand performance and improvement areas.
-          </li>
-          <li className="rounded-xl border border-slate-700 bg-slate-950/80 p-4">
-            <strong className="text-sky-200">Efficiency:</strong> Teachers save hours on result processing and distribution with one-click uploads and search-ready records.
-          </li>
-        </ul>
+      <section id="faq" className="mb-6 rounded-4xl border border-amber-50/10 bg-slate-900/55 p-6 shadow-[0_20px_60px_rgba(3,7,18,0.35)] backdrop-blur-[14px]">
+        <h2 className="mb-4 text-center text-2xl font-semibold text-amber-200">FAQ</h2>
+        <div className="mx-auto max-w-4xl space-y-3 text-slate-300">
+          {faqItems.map((item, index) => (
+            <article key={index} className="rounded-xl border border-slate-700 bg-slate-950/80 p-4">
+              <button
+                type="button"
+                className="w-full text-left font-semibold text-sky-200 focus:outline-none"
+                onClick={() => toggleFaq(index)}
+                aria-expanded={openIndex === index}
+              >
+                {item.question}
+              </button>
+              <div
+                className={`mt-2 overflow-hidden transition-all duration-300 ${
+                  openIndex === index ? "max-h-48" : "max-h-0"
+                }`}
+              >
+                <p className="text-sm text-slate-300">{item.answer}</p>
+              </div>
+            </article>
+          ))}
+        </div>
       </section>
 
       <footer className="mt-8 rounded-4xl border border-slate-700 bg-slate-950/70 p-6 text-slate-300 shadow-[0_16px_40px_rgba(0,0,0,0.25)]">

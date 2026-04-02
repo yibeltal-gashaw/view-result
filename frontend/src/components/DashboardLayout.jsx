@@ -4,6 +4,7 @@ import {
   createTeacherAccount,
   fetchAdminUsers,
   readTeacherSession,
+  updateAdminUserRole,
 } from "../lib/teacherAuthApi";
 import AddResult from '../pages/AddResult';
 import Analytics from '../pages/Analytics';
@@ -141,6 +142,9 @@ function RegisterTeacherView({ teacherSession }) {
       if (!teacherSession?.token) {
         throw new Error("Login again to continue.");
       }
+      if (role === "TEACHER" && selectedCourses.length === 0) {
+        throw new Error("Select at least one course for teacher.");
+      }
 
       const payload = {
         email,
@@ -231,28 +235,13 @@ function RegisterTeacherView({ teacherSession }) {
               <label className="block text-sm font-medium text-slate-300 mb-2">
                 Courses
               </label>
-              <select
-                multiple
-                value={selectedCourses}
-                onChange={(e) => {
-                  const values = Array.from(e.target.selectedOptions).map(
-                    (option) => option.value,
-                  );
-                  setSelectedCourses(values);
-                }}
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              <CourseMultiSelect
+                options={courseOptions}
+                selectedValues={selectedCourses}
+                onChange={setSelectedCourses}
                 disabled={coursesLoading}
-                required
-              >
-                {courseOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-2 text-xs text-slate-400">
-                Hold Ctrl/Cmd to select multiple courses.
-              </p>
+                placeholder={coursesLoading ? "Loading courses..." : "Select course(s)"}
+              />
               {coursesError ? (
                 <p className="mt-2 text-sm text-rose-200">{coursesError}</p>
               ) : null}
@@ -282,6 +271,12 @@ function TeachersView({ teacherSession }) {
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [roleDrafts, setRoleDrafts] = useState({});
+  const [courseDrafts, setCourseDrafts] = useState({});
+  const [courseOptions, setCourseOptions] = useState([]);
+  const [updatingTeacherId, setUpdatingTeacherId] = useState(null);
+  const [editingTeacherId, setEditingTeacherId] = useState(null);
+  const [success, setSuccess] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -296,8 +291,29 @@ function TeachersView({ teacherSession }) {
         }
 
         const users = await fetchAdminUsers({ token: teacherSession.token });
-        const onlyTeachers = users.filter((user) => user?.role === "TEACHER");
-        if (!cancelled) setTeachers(onlyTeachers);
+        const courses = await fetchCourses();
+        if (!cancelled) {
+          setCourseOptions(Array.isArray(courses) ? courses : []);
+          setTeachers(Array.isArray(users) ? users : []);
+          setRoleDrafts(
+            Object.fromEntries(
+              (Array.isArray(users) ? users : []).map((teacher) => [teacher.id, teacher.role]),
+            ),
+          );
+          setCourseDrafts(
+            Object.fromEntries(
+              (Array.isArray(users) ? users : []).map((teacher) => [
+                teacher.id,
+                Array.isArray(teacher.courses)
+                  ? teacher.courses
+                  : String(teacher.course || "")
+                      .split(",")
+                      .map((item) => item.trim())
+                      .filter(Boolean),
+              ]),
+            ),
+          );
+        }
       } catch (err) {
         if (!cancelled) setError(err?.message || "Unable to load teachers.");
       } finally {
@@ -311,12 +327,50 @@ function TeachersView({ teacherSession }) {
     };
   }, [teacherSession]);
 
+  async function handleUpdateRole(teacher) {
+    setUpdatingTeacherId(teacher.id);
+    setError("");
+    setSuccess("");
+
+    try {
+      if (!teacherSession?.token) {
+        throw new Error("Login again to continue.");
+      }
+
+      const nextRole = roleDrafts[teacher.id] || teacher.role;
+      const nextCourses = Array.isArray(courseDrafts[teacher.id])
+        ? courseDrafts[teacher.id]
+        : [];
+      const updated = await updateAdminUserRole({
+        token: teacherSession.token,
+        userId: teacher.id,
+        role: nextRole,
+        courses: nextCourses,
+      });
+
+      setTeachers((current) =>
+        current
+          .map((row) => (row.id === teacher.id ? { ...row, ...updated } : row)),
+      );
+      setSuccess(
+        `Updated ${teacher.email} to ${nextRole}${
+          nextCourses.length > 0 ? ` (${nextCourses.join(", ")})` : ""
+        }.`,
+      );
+      setEditingTeacherId(null);
+    } catch (err) {
+      setError(err?.message || "Unable to update teacher role.");
+    } finally {
+      setUpdatingTeacherId(null);
+    }
+  }
+
   return (
     <div className="max-w-5xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-50">Teachers</h1>
         <p className="mt-2 text-slate-300">
-          All teacher accounts and their assigned courses.
+          Manage user roles and assigned courses.
         </p>
       </div>
 
@@ -325,36 +379,144 @@ function TeachersView({ teacherSession }) {
           {error}
         </div>
       ) : null}
+      {success ? (
+        <div className="mb-4 rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3 text-sm text-emerald-100">
+          {success}
+        </div>
+      ) : null}
 
-      <div className="overflow-x-auto rounded-2xl border border-white/8 bg-white/5">
+      <div className="overflow-x-auto h-full overflow-y-visible rounded-2xl border border-white/8 bg-white/5">
         {loading ? (
           <div className="p-6 text-slate-300">Loading...</div>
         ) : teachers.length === 0 ? (
-          <div className="p-6 text-slate-300">No teacher accounts found.</div>
+          <div className="p-6 text-slate-300">No user accounts found.</div>
         ) : (
           <table className="min-w-full divide-y divide-white/8 text-left text-sm">
             <thead className="bg-white/6">
               <tr>
                 <th className="whitespace-nowrap px-4 py-3 font-medium text-slate-200">Email</th>
                 <th className="whitespace-nowrap px-4 py-3 font-medium text-slate-200">Courses</th>
+                <th className="whitespace-nowrap px-4 py-3 font-medium text-slate-200">Role</th>
                 <th className="whitespace-nowrap px-4 py-3 font-medium text-slate-200">Created</th>
+                <th className="whitespace-nowrap px-4 py-3 font-medium text-slate-200">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/6 bg-slate-950/40">
               {teachers.map((teacher) => (
                 <tr key={teacher.id}>
+                  {/** Default table shows read-only values; click Update to edit row. */}
                   <td className="whitespace-nowrap px-4 py-3 text-slate-100">
                     {teacher.email}
                   </td>
                   <td className="px-4 py-3 text-slate-200">
-                    {Array.isArray(teacher.courses) && teacher.courses.length > 0
-                      ? teacher.courses.join(", ")
-                      : teacher.course || "-"}
+                    {editingTeacherId === teacher.id ? (
+                      <CourseMultiSelect
+                        options={courseOptions}
+                        selectedValues={courseDrafts[teacher.id] || []}
+                        onChange={(values) =>
+                          setCourseDrafts((current) => ({
+                            ...current,
+                            [teacher.id]: values,
+                          }))
+                        }
+                        disabled={updatingTeacherId === teacher.id}
+                        compact
+                        placeholder="Select course(s)"
+                      />
+                    ) : (
+                      <span>
+                        {Array.isArray(teacher.courses) && teacher.courses.length > 0
+                          ? teacher.courses.join(", ")
+                          : teacher.course || "-"}
+                      </span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-300">
+                    {editingTeacherId === teacher.id ? (
+                      <select
+                        value={roleDrafts[teacher.id] || teacher.role}
+                        onChange={(e) =>
+                          setRoleDrafts((current) => ({
+                            ...current,
+                            [teacher.id]: e.target.value,
+                          }))
+                        }
+                        className="rounded-md border border-white/20 bg-white/10 px-2 py-1 text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                        disabled={updatingTeacherId === teacher.id}
+                      >
+                        <option value="TEACHER">TEACHER</option>
+                        <option value="ADMIN">ADMIN</option>
+                      </select>
+                    ) : (
+                      <span className="rounded-md border border-white/15 bg-white/5 px-2 py-1 text-xs">
+                        {teacher.role}
+                      </span>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-slate-400">
                     {teacher.createdAt
                       ? new Date(teacher.createdAt).toLocaleString()
                       : "-"}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    {editingTeacherId === teacher.id ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateRole(teacher)}
+                          disabled={updatingTeacherId === teacher.id}
+                          className="rounded-md border border-emerald-400/40 bg-emerald-400/20 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-400/30 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {updatingTeacherId === teacher.id ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingTeacherId(null);
+                            setRoleDrafts((current) => ({
+                              ...current,
+                              [teacher.id]: teacher.role,
+                            }));
+                            setCourseDrafts((current) => ({
+                              ...current,
+                              [teacher.id]: Array.isArray(teacher.courses)
+                                ? teacher.courses
+                                : String(teacher.course || "")
+                                    .split(",")
+                                    .map((item) => item.trim())
+                                    .filter(Boolean),
+                            }));
+                          }}
+                          disabled={updatingTeacherId === teacher.id}
+                          className="rounded-md border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingTeacherId(teacher.id);
+                          setRoleDrafts((current) => ({
+                            ...current,
+                            [teacher.id]: teacher.role,
+                          }));
+                          setCourseDrafts((current) => ({
+                            ...current,
+                            [teacher.id]: Array.isArray(teacher.courses)
+                              ? teacher.courses
+                              : String(teacher.course || "")
+                                  .split(",")
+                                  .map((item) => item.trim())
+                                  .filter(Boolean),
+                          }));
+                        }}
+                        className="rounded-md border border-amber-400/40 bg-amber-400/20 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-400/30"
+                      >
+                        Update
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -362,6 +524,61 @@ function TeachersView({ teacherSession }) {
           </table>
         )}
       </div>
+    </div>
+  );
+}
+
+function CourseMultiSelect({
+  options = [],
+  selectedValues = [],
+  onChange,
+  disabled = false,
+  compact = false,
+  placeholder = "Select course(s)",
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedSet = new Set(selectedValues);
+
+  const selectedLabels = options
+    .filter((option) => selectedSet.has(option.value))
+    .map((option) => option.label);
+
+  function toggleValue(value) {
+    const next = selectedSet.has(value)
+      ? selectedValues.filter((item) => item !== value)
+      : [...selectedValues, value];
+    onChange?.(next);
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => !disabled && setOpen((current) => !current)}
+        disabled={disabled}
+        className={`${compact ? "min-w-56 px-2 py-1 text-xs" : "w-full px-3 py-2 text-sm"} rounded-md border border-white/20 bg-white/10 text-left text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:cursor-not-allowed disabled:opacity-60`}
+      >
+        {selectedLabels.length > 0 ? selectedLabels.join(", ") : placeholder}
+      </button>
+
+      {open ? (
+        <div className="absolute z-20 mt-2 w-full rounded-md border border-white/20 bg-slate-900/95 p-2 shadow-xl">
+          {options.map((option) => (
+            <label
+              key={option.value}
+              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm text-slate-100 hover:bg-white/10"
+            >
+              <input
+                type="checkbox"
+                checked={selectedSet.has(option.value)}
+                onChange={() => toggleValue(option.value)}
+                className="h-4 w-4 accent-amber-400"
+              />
+              <span>{option.label}</span>
+            </label>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

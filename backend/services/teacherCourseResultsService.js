@@ -94,17 +94,25 @@ async function updateCourseResult({ resultId, updates = {} }) {
     };
   }
 
-  const totalForGrade =
-    nextTotal !== undefined ? nextTotal : existing.total;
-  const computedGrade =
-    nextGrade !== undefined ? nextGrade : calculateGrade(totalForGrade);
+  const computedTotalFromAssessments =
+    nextAssessments !== undefined
+      ? calculateAssessmentsTotal(nextAssessments)
+      : undefined;
+  const finalTotal =
+    computedTotalFromAssessments !== undefined
+      ? computedTotalFromAssessments
+      : nextTotal !== undefined
+        ? nextTotal
+        : existing.total;
+  const computedGrade = calculateGrade(finalTotal);
 
   const updated = await prisma.result.update({
     where: { id },
     data: {
-      ...(nextTotal !== undefined ? { total: nextTotal } : {}),
+      total: finalTotal,
       ...(nextAssessments !== undefined ? { assessments: nextAssessments } : {}),
-      grade: computedGrade || "",
+      // Keep grade consistent with total whenever a row is edited.
+      grade: computedGrade || nextGrade || "",
     },
     include: { student: true },
   });
@@ -129,6 +137,13 @@ async function updateCourseResult({ resultId, updates = {} }) {
       },
     },
   };
+}
+
+function calculateAssessmentsTotal(assessments = {}) {
+  return Object.values(assessments).reduce((total, value) => {
+    const normalized = normalizeNumber(value);
+    return total + (normalized === null ? 0 : normalized);
+  }, 0);
 }
 
 module.exports = {

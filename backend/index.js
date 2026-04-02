@@ -21,7 +21,7 @@ async function startServer() {
         "https://mau-examresult.netlify.app",
         "http://localhost:5173",
       ],
-      methods: ["GET", "POST", "OPTIONS"],
+      methods: ["GET", "POST","PATCH", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization"],
       credentials: true,
     }),

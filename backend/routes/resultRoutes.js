@@ -8,6 +8,7 @@ const {
   getTeacherCourseResults,
   getStudentResult,
   login,
+  patchAdminUserRole,
   patchTeacherCourseResult,
   uploadTeacherResults,
 } = require("../controllers/resultController");
@@ -36,6 +37,12 @@ router.get(
   requireAuth,
   requireRole("ADMIN"),
   getAdminUsers,
+);
+router.patch(
+  "/api/admin/users/:userId/role",
+  requireAuth,
+  requireRole("ADMIN"),
+  patchAdminUserRole,
 );
 router.post(
   "/api/teacher/results/upload",

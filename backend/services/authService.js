@@ -264,6 +264,87 @@ async function listUsers(currentUser) {
   };
 }
 
+async function updateUserRole(currentUser, userId, updates = {}) {
+  if (currentUser?.role !== USER_ROLES.ADMIN) {
+    return {
+      status: 403,
+      body: {
+        message: "Only admins can update user roles.",
+      },
+    };
+  }
+
+  const userModel = getUserModel();
+  if (!userModel) {
+    return {
+      status: 500,
+      body: {
+        message:
+          "Internal server error: user model not available. Check Prisma generation.",
+      },
+    };
+  }
+
+  const normalizedRole = normalizeRole(updates.role);
+  if (!normalizedRole) {
+    return {
+      status: 400,
+      body: {
+        message: "Role must be ADMIN or TEACHER.",
+      },
+    };
+  }
+
+  const numericId = Number(userId);
+  if (!Number.isFinite(numericId)) {
+    return {
+      status: 400,
+      body: {
+        message: "Invalid user id.",
+      },
+    };
+  }
+
+  const existingUser = await userModel.findUnique({
+    where: { id: numericId },
+  });
+
+  if (!existingUser) {
+    return {
+      status: 404,
+      body: {
+        message: "User not found.",
+      },
+    };
+  }
+
+  const nextCourses = normalizeCoursesInput(updates.courses ?? updates.course);
+  if (normalizedRole === USER_ROLES.TEACHER && nextCourses.length === 0) {
+    return {
+      status: 400,
+      body: {
+        message: "At least one course is required for teacher accounts.",
+      },
+    };
+  }
+
+  const updated = await userModel.update({
+    where: { id: numericId },
+    data: {
+      role: normalizedRole,
+      course: serializeCourses(nextCourses),
+    },
+  });
+
+  return {
+    status: 200,
+    body: {
+      message: "User role updated successfully.",
+      user: buildPublicUser(updated),
+    },
+  };
+}
+
 function signUserToken(user) {
   const courses = deserializeCourses(user.course);
   return jwt.sign(
@@ -327,5 +408,6 @@ module.exports = {
   createUser,
   ensureAdminUser,
   listUsers,
+  updateUserRole,
   loginUser,
 };

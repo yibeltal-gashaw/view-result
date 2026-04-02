@@ -7,6 +7,7 @@ function MyCourse() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchName, setSearchName] = useState("");
+  const [selectedCourse, setSelectedCourse] = useState("");
   const teacherCourses = useMemo(() => {
     const session = readTeacherSession();
     const fromArray = Array.isArray(session?.user?.courses)
@@ -52,11 +53,24 @@ function MyCourse() {
     });
   }, [results]);
 
+  useEffect(() => {
+    if (!selectedCourse && teacherCourses.length > 0) {
+      setSelectedCourse(teacherCourses[0]);
+    }
+  }, [teacherCourses, selectedCourse]);
+
+  const resultsBySelectedCourse = useMemo(() => {
+    if (!selectedCourse) return [];
+    return sortedResults.filter(
+      (row) => String(row?.course || "").trim().toLowerCase() === selectedCourse,
+    );
+  }, [sortedResults, selectedCourse]);
+
   const filteredResults = useMemo(() => {
     const query = searchName.trim().toLowerCase();
-    if (!query) return sortedResults;
+    if (!query) return resultsBySelectedCourse;
 
-    return sortedResults.filter((row) => {
+    return resultsBySelectedCourse.filter((row) => {
       const fullName = String(
         row.fullName || `${row.firstName || ""} ${row.fatherName || ""}`.trim(),
       )
@@ -64,15 +78,15 @@ function MyCourse() {
         .toLowerCase();
       return fullName.includes(query);
     });
-  }, [sortedResults, searchName]);
+  }, [resultsBySelectedCourse, searchName]);
 
   const assessmentKeys = useMemo(() => {
     const keys = new Set();
-    sortedResults.forEach((row) => {
+    resultsBySelectedCourse.forEach((row) => {
       Object.keys(row?.assessments || {}).forEach((key) => keys.add(key));
     });
     return Array.from(keys).sort((a, b) => a.localeCompare(b));
-  }, [sortedResults]);
+  }, [resultsBySelectedCourse]);
 
   useEffect(() => {
     let cancelled = false;
@@ -222,19 +236,39 @@ function MyCourse() {
       ) : null}
 
       <div className="rounded-2xl border border-white/8 bg-white/5 p-6">
-        <div className="mb-4">
-          <label className="block text-xs font-medium uppercase tracking-[0.12em] text-slate-400 mb-2">
-            Search by student name
-          </label>
-          <div className="relative w-full max-w-sm">
-            <input
-              type="text"
-              value={searchName}
-              onChange={(e) => setSearchName(e.target.value)}
-              placeholder="e.g. Ephrem Babu"
-              className="w-full rounded-md border border-white/12 bg-slate-950/70 px-3 py-2 pr-9 text-sm text-slate-100 outline-none focus:border-emerald-400/60"
-            />
-            <Filter className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <div className="mb-4 grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="block text-xs font-medium uppercase tracking-[0.12em] text-slate-400 mb-2">
+              Course
+            </label>
+            <select
+              value={selectedCourse}
+              onChange={(e) => setSelectedCourse(e.target.value)}
+              className="w-full max-w-sm rounded-md border border-white/12 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-400/60"
+              disabled={teacherCourses.length === 0}
+            >
+              {teacherCourses.map((course) => (
+                <option key={course} value={course}>
+                  {course}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium uppercase tracking-[0.12em] text-slate-400 mb-2">
+              Search by student name
+            </label>
+            <div className="relative w-full max-w-sm">
+              <input
+                type="text"
+                value={searchName}
+                onChange={(e) => setSearchName(e.target.value)}
+                placeholder="e.g. Ephrem Babu"
+                className="w-full rounded-md border border-white/12 bg-slate-950/70 px-3 py-2 pr-9 text-sm text-slate-100 outline-none focus:border-emerald-400/60"
+              />
+              <Filter className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            </div>
           </div>
         </div>
 
@@ -244,6 +278,8 @@ function MyCourse() {
           <p className="text-slate-300">
             No courses assigned to this teacher account yet.
           </p>
+        ) : !selectedCourse ? (
+          <p className="text-slate-300">Select a course to view results.</p>
         ) : filteredResults.length === 0 ? (
           <p className="text-slate-300">
             No students matched your search.

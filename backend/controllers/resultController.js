@@ -3,7 +3,12 @@ const {
   formatStudentResult,
   listCourses,
 } = require("../services/resultService");
-const { createUser, listUsers, loginUser } = require("../services/authService");
+const {
+  createUser,
+  listUsers,
+  loginUser,
+  updateUserRole,
+} = require("../services/authService");
 const { uploadCourseResults } = require("../services/uploadService");
 const { getAnalyticsData } = require("../services/analyticsService");
 const {
@@ -211,9 +216,22 @@ async function getAdminUsers(req, res) {
   }
 }
 
+async function patchAdminUserRole(req, res) {
+  try {
+    const result = await updateUserRole(req.user, req.params.userId, req.body || {});
+    return res.status(result.status).json(result.body);
+  } catch (error) {
+    console.error("Update user role API error:", error);
+    return res.status(500).json({
+      message: "Unable to update user role right now.",
+    });
+  }
+}
+
 module.exports = {
   createTeacherAccount,
   getAdminUsers,
+  patchAdminUserRole,
   getCourses,
   getHealth,
   getAnalytics,

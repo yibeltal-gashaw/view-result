@@ -92,6 +92,26 @@ export async function fetchAdminUsers({ token }) {
   return Array.isArray(data?.users) ? data.users : [];
 }
 
+export async function updateAdminUserRole({ token, userId, role, courses }) {
+  const endpoint = `${getAdminUsersEndpoint()}/${encodeURIComponent(userId)}/role`;
+  const response = await fetch(endpoint, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ role, courses }),
+  });
+
+  const data = await readJsonResponse(response);
+
+  if (!response.ok) {
+    throw buildApiError(data, "Unable to update user role.");
+  }
+
+  return data?.user || null;
+}
+
 export function persistTeacherSession(session) {
   window.localStorage.setItem(
     TEACHER_AUTH_STORAGE_KEY,

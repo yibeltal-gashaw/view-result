@@ -145,6 +145,7 @@ async function createUser(currentUser, payload = {}) {
   const email = normalizeEmail(payload.email);
   const password = String(payload.password || "").trim();
   const requestedRole = normalizeRole(payload.role);
+  const requestedCourse = normalizeOptionalText(payload.course).toLowerCase();
 
   if (currentUser?.role !== USER_ROLES.ADMIN) {
     return {
@@ -169,6 +170,15 @@ async function createUser(currentUser, payload = {}) {
       status: 400,
       body: {
         message: "Role must be ADMIN or TEACHER.",
+      },
+    };
+  }
+
+  if (requestedRole === USER_ROLES.TEACHER && !requestedCourse) {
+    return {
+      status: 400,
+      body: {
+        message: "Course is required for teacher accounts.",
       },
     };
   }
@@ -205,6 +215,7 @@ async function createUser(currentUser, payload = {}) {
       email,
       passwordHash,
       role: requestedRole,
+      course: requestedRole === USER_ROLES.TEACHER ? requestedCourse : "",
     },
   });
 
@@ -223,6 +234,7 @@ function signUserToken(user) {
       id: user.id,
       email: user.email,
       role: user.role,
+      course: user.course || "",
     },
     process.env.JWT_SECRET,
     {
@@ -236,6 +248,7 @@ function buildPublicUser(user) {
     id: user.id,
     email: user.email,
     role: user.role,
+    course: user.course || "",
     createdAt: user.createdAt,
   };
 }

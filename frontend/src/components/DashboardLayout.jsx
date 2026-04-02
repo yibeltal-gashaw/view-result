@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from "react";
 import SideBar from './SideBar';
 import {
-  readTeacherSession
+  createTeacherAccount,
+  readTeacherSession,
 } from "../lib/teacherAuthApi";
 import AddResult from '../pages/AddResult';
 import Analytics from '../pages/Analytics';
+import MyCourse from "../pages/MyCourse";
+import { fetchCourses } from "../lib/resultApi";
 
 function DashboardLayout() {
   const [teacherSession, setTeacherSession] = useState(() => readTeacherSession());
@@ -18,6 +21,8 @@ function DashboardLayout() {
     switch (currentRoute) {
       case 'home':
         return <Analytics />;
+      case "my-course":
+        return <MyCourse />;
       case 'add-result':
         return <AddResult teacherSession={teacherSession} />;
       case 'settings':
@@ -81,8 +86,47 @@ function RegisterTeacherView({ teacherSession }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('TEACHER');
+  const [course, setCourse] = useState("");
+  const [courses, setCourses] = useState([]);
+  const [coursesError, setCoursesError] = useState("");
+  const [coursesLoading, setCoursesLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
+
+  const courseOptions = useMemo(
+    () => (Array.isArray(courses) ? courses : []),
+    [courses],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCourses() {
+      setCoursesLoading(true);
+      setCoursesError("");
+
+      try {
+        const nextCourses = await fetchCourses();
+        if (!cancelled) setCourses(nextCourses);
+      } catch (err) {
+        if (!cancelled)
+          setCoursesError(err?.message || "Unable to load courses.");
+      } finally {
+        if (!cancelled) setCoursesLoading(false);
+      }
+    }
+
+    loadCourses();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (role !== "TEACHER") {
+      setCourse("");
+    }
+  }, [role]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -90,9 +134,32 @@ function RegisterTeacherView({ teacherSession }) {
     setMessage('');
 
     try {
-      // This would need to be implemented in the API
-      // const result = await createTeacherAccount({ email, password, role });
-      setMessage('Teacher registration functionality needs to be implemented in the backend API.');
+      if (!teacherSession?.token) {
+        throw new Error("Login again to continue.");
+      }
+
+      const payload = {
+        email,
+        password,
+        role,
+        ...(role === "TEACHER" ? { course } : {}),
+      };
+
+      const result = await createTeacherAccount({
+        token: teacherSession.token,
+        payload,
+      });
+
+      const createdUser = result?.user;
+      setMessage(
+        `Created ${createdUser?.email || email} as ${createdUser?.role || role}${
+          createdUser?.course ? ` (${createdUser.course})` : ""
+        }.`,
+      );
+      setEmail("");
+      setPassword("");
+      setRole("TEACHER");
+      setCourse("");
     } catch (error) {
       setMessage(error.message || 'Failed to register teacher');
     } finally {
@@ -150,6 +217,33 @@ function RegisterTeacherView({ teacherSession }) {
               <option value="ADMIN">Admin</option>
             </select>
           </div>
+
+          {role === "TEACHER" ? (
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Course
+              </label>
+              <select
+                value={course}
+                onChange={(e) => setCourse(e.target.value)}
+                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                disabled={coursesLoading}
+                required
+              >
+                <option value="">
+                  {coursesLoading ? "Loading courses..." : "Select a course"}
+                </option>
+                {courseOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              {coursesError ? (
+                <p className="mt-2 text-sm text-rose-200">{coursesError}</p>
+              ) : null}
+            </div>
+          ) : null}
 
           <button
             type="submit"

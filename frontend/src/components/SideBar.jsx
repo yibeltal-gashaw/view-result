@@ -1,4 +1,4 @@
-import { Home, FilePlus, Settings2, UserPlus } from "lucide-react";
+import { BookOpen, FilePlus, Home, Settings2, UserPlus } from "lucide-react";
 import logo from "../assets/logo.png";
 
 function SideBar({ teacherSession, onRouteChange, currentRoute }) {
@@ -13,7 +13,7 @@ function SideBar({ teacherSession, onRouteChange, currentRoute }) {
   };
 
   return (
-    <aside className="w-72 flex-shrink-0 border-b border-white/8 bg-slate-950/75 p-6 backdrop-blur-xl lg:border-b-0 lg:border-r lg:max-h-screen lg:overflow-y-auto">
+    <aside className="w-72 shrink-0 border-b border-white/8 bg-slate-950/75 p-6 backdrop-blur-xl lg:border-b-0 lg:border-r lg:max-h-screen lg:overflow-y-auto">
       <div className="mb-8 flex items-center gap-3">
         <div className="h-11 w-11 rounded-xl bg-linear-to-br from-amber-400 to-fuchsia-500">
           <img src={logo} alt="Logo" className="h-full w-full object-contain" />
@@ -32,7 +32,14 @@ function SideBar({ teacherSession, onRouteChange, currentRoute }) {
           onClick={() => onRouteChange?.("home")}
         >
           <Home className="h-4 w-4" />
-          Home (Analytics)
+          Home
+        </button>
+        <button
+          className={getButtonClasses("my-course")}
+          onClick={() => onRouteChange?.("my-course")}
+        >
+          <BookOpen className="h-4 w-4" />
+          My course
         </button>
         <button
           className={getButtonClasses("add-result")}
@@ -40,13 +47,6 @@ function SideBar({ teacherSession, onRouteChange, currentRoute }) {
         >
           <FilePlus className="h-4 w-4" />
           Add Result
-        </button>
-        <button
-          className={getButtonClasses("settings")}
-          onClick={() => onRouteChange?.("settings")}
-        >
-          <Settings2 className="h-4 w-4" />
-          Settings
         </button>
         {isAdmin && (
           <button
@@ -57,6 +57,14 @@ function SideBar({ teacherSession, onRouteChange, currentRoute }) {
             Register Teacher
           </button>
         )}
+        <button
+          className={getButtonClasses("settings")}
+          onClick={() => onRouteChange?.("settings")}
+        >
+          <Settings2 className="h-4 w-4" />
+          Settings
+        </button>
+        
       </nav>
     </aside>
   );

@@ -5,6 +5,7 @@ const {
 } = require("../services/resultService");
 const { createUser, loginUser } = require("../services/authService");
 const { uploadCourseResults } = require("../services/uploadService");
+const { getAnalyticsData } = require("../services/analyticsService");
 const { normalizeOptionalText, normalizeStudentId } = require("../utils/text");
 
 function getHealth(req, res) {
@@ -76,6 +77,18 @@ async function uploadTeacherResults(req, res) {
   }
 }
 
+async function getAnalytics(req, res) {
+  try {
+    const analyticsData = await getAnalyticsData();
+    return res.json({ analyticsData });
+  } catch (error) {
+    console.error("Analytics API error:", error);
+    return res.status(500).json({
+      message: "Unable to load analytics right now.",
+    });
+  }
+}
+
 async function login(req, res) {
   try {
     const result = await loginUser(req.body);
@@ -104,6 +117,7 @@ module.exports = {
   createTeacherAccount,
   getCourses,
   getHealth,
+  getAnalytics,
   getStudentResult,
   login,
   uploadTeacherResults,

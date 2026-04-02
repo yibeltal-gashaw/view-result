@@ -3,6 +3,7 @@ const {
   createTeacherAccount,
   getCourses,
   getHealth,
+  getAnalytics,
   getStudentResult,
   login,
   uploadTeacherResults,
@@ -14,6 +15,12 @@ const router = express.Router();
 router.get("/", getHealth);
 router.get("/api/courses", getCourses);
 router.get("/api/results/:studentId", getStudentResult);
+router.get(
+  "/api/admin/analytics",
+  requireAuth,
+  requireRole("ADMIN", "TEACHER"),
+  getAnalytics,
+);
 router.post("/api/auth/login", login);
 router.post(
   "/api/admin/users",

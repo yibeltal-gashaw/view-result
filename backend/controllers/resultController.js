@@ -3,7 +3,7 @@ const {
   formatStudentResult,
   listCourses,
 } = require("../services/resultService");
-const { createUser, loginUser } = require("../services/authService");
+const { createUser, listUsers, loginUser } = require("../services/authService");
 const { uploadCourseResults } = require("../services/uploadService");
 const { getAnalyticsData } = require("../services/analyticsService");
 const {
@@ -96,17 +96,23 @@ async function getAnalytics(req, res) {
 
 async function getTeacherCourseResults(req, res) {
   try {
-    const requestedCourse =
-      req.user.course
+    const assignedCourses = normalizeCourseList(
+      req.user?.courses?.length ? req.user.courses : req.user?.course,
+    );
+    const requestedCourse = normalizeOptionalText(req.query.course).toLowerCase();
+    const coursesToQuery =
+      req.user?.role === "ADMIN"
+        ? normalizeCourseList(requestedCourse || assignedCourses)
+        : assignedCourses;
 
-    if (!requestedCourse) {
+    if (coursesToQuery.length === 0) {
       return res.status(400).json({
-        message: "Course is required.",
+        message: "At least one course is required.",
       });
     }
 
-    const results = await listCourseResults({ course: requestedCourse });
-    return res.json({ course: requestedCourse, results });
+    const results = await listCourseResults({ courses: coursesToQuery });
+    return res.json({ courses: coursesToQuery, results });
   } catch (error) {
     console.error("Teacher course results API error:", error);
     return res.status(500).json({
@@ -133,10 +139,12 @@ async function patchTeacherCourseResult(req, res) {
       return res.status(404).json({ message: "Result not found." });
     }
 
-    const teacherCourse = normalizeOptionalText(req.user?.course).toLowerCase();
+    const teacherCourses = normalizeCourseList(
+      req.user?.courses?.length ? req.user.courses : req.user?.course,
+    );
     if (
       req.user?.role !== "ADMIN" &&
-      (!teacherCourse || existing.course !== teacherCourse)
+      (teacherCourses.length === 0 || !teacherCourses.includes(existing.course))
     ) {
       return res.status(403).json({
         message: "You do not have access to update this result.",
@@ -155,6 +163,16 @@ async function patchTeacherCourseResult(req, res) {
       message: "Unable to update the result right now.",
     });
   }
+}
+
+function normalizeCourseList(value) {
+  const rawValues = Array.isArray(value) ? value : [value];
+  const normalized = rawValues
+    .flatMap((item) => String(item || "").split(","))
+    .map((item) => normalizeOptionalText(item).toLowerCase())
+    .filter(Boolean);
+
+  return [...new Set(normalized)];
 }
 
 async function login(req, res) {
@@ -181,8 +199,21 @@ async function createTeacherAccount(req, res) {
   }
 }
 
+async function getAdminUsers(req, res) {
+  try {
+    const result = await listUsers(req.user);
+    return res.status(result.status).json(result.body);
+  } catch (error) {
+    console.error("List users API error:", error);
+    return res.status(500).json({
+      message: "Unable to load users right now.",
+    });
+  }
+}
+
 module.exports = {
   createTeacherAccount,
+  getAdminUsers,
   getCourses,
   getHealth,
   getAnalytics,

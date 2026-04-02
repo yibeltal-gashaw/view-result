@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Pencil, Save, X } from "lucide-react";
+import { BookOpen, Filter, Pencil, Save, X } from "lucide-react";
 import { readTeacherSession } from "../lib/teacherAuthApi";
 
 function MyCourse() {
@@ -7,9 +7,17 @@ function MyCourse() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchName, setSearchName] = useState("");
-  const teacherCourse = useMemo(() => {
+  const teacherCourses = useMemo(() => {
     const session = readTeacherSession();
-    return String(session?.user?.course || "").trim().toLowerCase();
+    const fromArray = Array.isArray(session?.user?.courses)
+      ? session.user.courses
+      : [];
+    const fromLegacy = String(session?.user?.course || "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    return [...new Set([...fromArray, ...fromLegacy].map((item) => item.toLowerCase()))];
   }, []);
 
   const [editingId, setEditingId] = useState(null);
@@ -202,7 +210,8 @@ function MyCourse() {
           My course
         </h1>
         <p className="text-slate-300">
-          Showing results for your assigned course{teacherCourse ? ` (${teacherCourse})` : ""}.
+          Showing results for your assigned courses
+          {teacherCourses.length > 0 ? ` (${teacherCourses.join(", ")})` : ""}.
         </p>
       </div>
 
@@ -217,20 +226,23 @@ function MyCourse() {
           <label className="block text-xs font-medium uppercase tracking-[0.12em] text-slate-400 mb-2">
             Search by student name
           </label>
-          <input
-            type="text"
-            value={searchName}
-            onChange={(e) => setSearchName(e.target.value)}
-            placeholder="e.g. Ephrem Babu"
-            className="w-full max-w-sm rounded-md border border-white/12 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-400/60"
-          />
+          <div className="relative w-full max-w-sm">
+            <input
+              type="text"
+              value={searchName}
+              onChange={(e) => setSearchName(e.target.value)}
+              placeholder="e.g. Ephrem Babu"
+              className="w-full rounded-md border border-white/12 bg-slate-950/70 px-3 py-2 pr-9 text-sm text-slate-100 outline-none focus:border-emerald-400/60"
+            />
+            <Filter className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          </div>
         </div>
 
         {isLoading ? (
           <p className="text-slate-400">Loading...</p>
-        ) : !teacherCourse ? (
+        ) : teacherCourses.length === 0 ? (
           <p className="text-slate-300">
-            No course assigned to this teacher account yet.
+            No courses assigned to this teacher account yet.
           </p>
         ) : filteredResults.length === 0 ? (
           <p className="text-slate-300">

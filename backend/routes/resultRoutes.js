@@ -1,6 +1,7 @@
 const express = require("express");
 const {
   createTeacherAccount,
+  getAdminUsers,
   getCourses,
   getHealth,
   getAnalytics,
@@ -29,6 +30,12 @@ router.post(
   requireAuth,
   requireRole("ADMIN"),
   createTeacherAccount,
+);
+router.get(
+  "/api/admin/users",
+  requireAuth,
+  requireRole("ADMIN"),
+  getAdminUsers,
 );
 router.post(
   "/api/teacher/results/upload",

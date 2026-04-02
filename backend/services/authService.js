@@ -145,7 +145,7 @@ async function createUser(currentUser, payload = {}) {
   const email = normalizeEmail(payload.email);
   const password = String(payload.password || "").trim();
   const requestedRole = normalizeRole(payload.role);
-  const requestedCourse = normalizeOptionalText(payload.course).toLowerCase();
+  const requestedCourses = normalizeCoursesInput(payload.courses ?? payload.course);
 
   if (currentUser?.role !== USER_ROLES.ADMIN) {
     return {
@@ -174,11 +174,11 @@ async function createUser(currentUser, payload = {}) {
     };
   }
 
-  if (requestedRole === USER_ROLES.TEACHER && !requestedCourse) {
+  if (requestedRole === USER_ROLES.TEACHER && requestedCourses.length === 0) {
     return {
       status: 400,
       body: {
-        message: "Course is required for teacher accounts.",
+        message: "At least one course is required for teacher accounts.",
       },
     };
   }
@@ -215,7 +215,10 @@ async function createUser(currentUser, payload = {}) {
       email,
       passwordHash,
       role: requestedRole,
-      course: requestedRole === USER_ROLES.TEACHER ? requestedCourse : "",
+      course:
+        requestedRole === USER_ROLES.TEACHER
+          ? serializeCourses(requestedCourses)
+          : "",
     },
   });
 
@@ -228,13 +231,48 @@ async function createUser(currentUser, payload = {}) {
   };
 }
 
+async function listUsers(currentUser) {
+  if (currentUser?.role !== USER_ROLES.ADMIN) {
+    return {
+      status: 403,
+      body: {
+        message: "Only admins can view user accounts.",
+      },
+    };
+  }
+
+  const userModel = getUserModel();
+  if (!userModel) {
+    return {
+      status: 500,
+      body: {
+        message:
+          "Internal server error: user model not available. Check Prisma generation.",
+      },
+    };
+  }
+
+  const users = await userModel.findMany({
+    orderBy: [{ role: "asc" }, { createdAt: "desc" }],
+  });
+
+  return {
+    status: 200,
+    body: {
+      users: users.map(buildPublicUser),
+    },
+  };
+}
+
 function signUserToken(user) {
+  const courses = deserializeCourses(user.course);
   return jwt.sign(
     {
       id: user.id,
       email: user.email,
       role: user.role,
-      course: user.course || "",
+      course: courses[0] || "",
+      courses,
     },
     process.env.JWT_SECRET,
     {
@@ -244,11 +282,13 @@ function signUserToken(user) {
 }
 
 function buildPublicUser(user) {
+  const courses = deserializeCourses(user.course);
   return {
     id: user.id,
     email: user.email,
     role: user.role,
-    course: user.course || "",
+    course: courses[0] || "",
+    courses,
     createdAt: user.createdAt,
   };
 }
@@ -264,9 +304,28 @@ function normalizeRole(value) {
     : "";
 }
 
+function normalizeCoursesInput(value) {
+  const rawValues = Array.isArray(value) ? value : [value];
+  const normalized = rawValues
+    .flatMap((item) => String(item || "").split(","))
+    .map((item) => normalizeOptionalText(item).toLowerCase())
+    .filter(Boolean);
+
+  return [...new Set(normalized)];
+}
+
+function serializeCourses(courses = []) {
+  return normalizeCoursesInput(courses).join(",");
+}
+
+function deserializeCourses(value) {
+  return normalizeCoursesInput(value);
+}
+
 module.exports = {
   USER_ROLES,
   createUser,
   ensureAdminUser,
+  listUsers,
   loginUser,
 };

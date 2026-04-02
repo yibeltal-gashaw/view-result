@@ -2,8 +2,13 @@ const { prisma } = require("../config/database");
 const { calculateGrade } = require("../utils/grade");
 const { normalizeOptionalText } = require("../utils/text");
 
-function normalizeCourse(value) {
-  return normalizeOptionalText(value).toLowerCase();
+function normalizeCourses(value) {
+  const rawValues = Array.isArray(value) ? value : [value];
+  const normalized = rawValues
+    .flatMap((item) => String(item || "").split(","))
+    .map((item) => normalizeOptionalText(item).toLowerCase())
+    .filter(Boolean);
+  return [...new Set(normalized)];
 }
 
 function normalizeNumber(value) {
@@ -13,22 +18,21 @@ function normalizeNumber(value) {
   return Number.isFinite(numericValue) ? numericValue : null;
 }
 
-async function listCourseResults({ course }) {
-  const normalizedCourse = normalizeCourse(course);
+async function listCourseResults({ course, courses }) {
+  const normalizedCourses = normalizeCourses(courses ?? course);
 
-  if (!normalizedCourse) {
+  if (normalizedCourses.length === 0) {
     return [];
   }
   const results = await prisma.result.findMany({
     where: {
-      course: normalizedCourse,
+      course: { in: normalizedCourses },
     },
     orderBy: [{ year: "asc" }, { studentId: "asc" }],
     include: {
       student: true,
     },
   });
-  console.log("Results found:", results);
   return results.map((row) => ({
     id: row.id,
     studentId: row.studentId,

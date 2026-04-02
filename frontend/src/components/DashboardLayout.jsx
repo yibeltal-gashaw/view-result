@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import SideBar from './SideBar';
 import {
   createTeacherAccount,
+  fetchAdminUsers,
   readTeacherSession,
 } from "../lib/teacherAuthApi";
 import AddResult from '../pages/AddResult';
@@ -21,8 +22,11 @@ function DashboardLayout() {
     switch (currentRoute) {
       case 'home':
         return <Analytics />;
+      case "courses":
       case "my-course":
         return <MyCourse />;
+      case "teachers":
+        return <TeachersView teacherSession={teacherSession} />;
       case 'add-result':
         return <AddResult teacherSession={teacherSession} />;
       case 'settings':
@@ -86,7 +90,7 @@ function RegisterTeacherView({ teacherSession }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('TEACHER');
-  const [course, setCourse] = useState("");
+  const [selectedCourses, setSelectedCourses] = useState([]);
   const [courses, setCourses] = useState([]);
   const [coursesError, setCoursesError] = useState("");
   const [coursesLoading, setCoursesLoading] = useState(true);
@@ -124,7 +128,7 @@ function RegisterTeacherView({ teacherSession }) {
 
   useEffect(() => {
     if (role !== "TEACHER") {
-      setCourse("");
+      setSelectedCourses([]);
     }
   }, [role]);
 
@@ -142,7 +146,7 @@ function RegisterTeacherView({ teacherSession }) {
         email,
         password,
         role,
-        ...(role === "TEACHER" ? { course } : {}),
+        ...(role === "TEACHER" ? { courses: selectedCourses } : {}),
       };
 
       const result = await createTeacherAccount({
@@ -153,13 +157,17 @@ function RegisterTeacherView({ teacherSession }) {
       const createdUser = result?.user;
       setMessage(
         `Created ${createdUser?.email || email} as ${createdUser?.role || role}${
-          createdUser?.course ? ` (${createdUser.course})` : ""
+          Array.isArray(createdUser?.courses) && createdUser.courses.length > 0
+            ? ` (${createdUser.courses.join(", ")})`
+            : createdUser?.course
+              ? ` (${createdUser.course})`
+              : ""
         }.`,
       );
       setEmail("");
       setPassword("");
       setRole("TEACHER");
-      setCourse("");
+      setSelectedCourses([]);
     } catch (error) {
       setMessage(error.message || 'Failed to register teacher');
     } finally {
@@ -221,24 +229,30 @@ function RegisterTeacherView({ teacherSession }) {
           {role === "TEACHER" ? (
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Course
+                Courses
               </label>
               <select
-                value={course}
-                onChange={(e) => setCourse(e.target.value)}
+                multiple
+                value={selectedCourses}
+                onChange={(e) => {
+                  const values = Array.from(e.target.selectedOptions).map(
+                    (option) => option.value,
+                  );
+                  setSelectedCourses(values);
+                }}
                 className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-400"
                 disabled={coursesLoading}
                 required
               >
-                <option value="">
-                  {coursesLoading ? "Loading courses..." : "Select a course"}
-                </option>
                 {courseOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
               </select>
+              <p className="mt-2 text-xs text-slate-400">
+                Hold Ctrl/Cmd to select multiple courses.
+              </p>
               {coursesError ? (
                 <p className="mt-2 text-sm text-rose-200">{coursesError}</p>
               ) : null}
@@ -259,6 +273,94 @@ function RegisterTeacherView({ teacherSession }) {
             </div>
           )}
         </form>
+      </div>
+    </div>
+  );
+}
+
+function TeachersView({ teacherSession }) {
+  const [teachers, setTeachers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTeachers() {
+      setLoading(true);
+      setError("");
+
+      try {
+        if (!teacherSession?.token) {
+          throw new Error("Login again to continue.");
+        }
+
+        const users = await fetchAdminUsers({ token: teacherSession.token });
+        const onlyTeachers = users.filter((user) => user?.role === "TEACHER");
+        if (!cancelled) setTeachers(onlyTeachers);
+      } catch (err) {
+        if (!cancelled) setError(err?.message || "Unable to load teachers.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadTeachers();
+    return () => {
+      cancelled = true;
+    };
+  }, [teacherSession]);
+
+  return (
+    <div className="max-w-5xl">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-slate-50">Teachers</h1>
+        <p className="mt-2 text-slate-300">
+          All teacher accounts and their assigned courses.
+        </p>
+      </div>
+
+      {error ? (
+        <div className="mb-4 rounded-xl border border-rose-400/30 bg-rose-400/10 p-3 text-sm text-rose-100">
+          {error}
+        </div>
+      ) : null}
+
+      <div className="overflow-x-auto rounded-2xl border border-white/8 bg-white/5">
+        {loading ? (
+          <div className="p-6 text-slate-300">Loading...</div>
+        ) : teachers.length === 0 ? (
+          <div className="p-6 text-slate-300">No teacher accounts found.</div>
+        ) : (
+          <table className="min-w-full divide-y divide-white/8 text-left text-sm">
+            <thead className="bg-white/6">
+              <tr>
+                <th className="whitespace-nowrap px-4 py-3 font-medium text-slate-200">Email</th>
+                <th className="whitespace-nowrap px-4 py-3 font-medium text-slate-200">Courses</th>
+                <th className="whitespace-nowrap px-4 py-3 font-medium text-slate-200">Created</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/6 bg-slate-950/40">
+              {teachers.map((teacher) => (
+                <tr key={teacher.id}>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-100">
+                    {teacher.email}
+                  </td>
+                  <td className="px-4 py-3 text-slate-200">
+                    {Array.isArray(teacher.courses) && teacher.courses.length > 0
+                      ? teacher.courses.join(", ")
+                      : teacher.course || "-"}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-400">
+                    {teacher.createdAt
+                      ? new Date(teacher.createdAt).toLocaleString()
+                      : "-"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

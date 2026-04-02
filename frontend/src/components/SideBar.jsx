@@ -1,4 +1,4 @@
-import { BookOpen, FilePlus, Home, Settings2, UserPlus } from "lucide-react";
+import { BookOpen, FilePlus, Home, Settings2, UserPlus, Users } from "lucide-react";
 import logo from "../assets/logo.png";
 
 function SideBar({ teacherSession, onRouteChange, currentRoute }) {
@@ -35,11 +35,11 @@ function SideBar({ teacherSession, onRouteChange, currentRoute }) {
           Home
         </button>
         <button
-          className={getButtonClasses("my-course")}
-          onClick={() => onRouteChange?.("my-course")}
+          className={getButtonClasses("courses")}
+          onClick={() => onRouteChange?.("courses")}
         >
           <BookOpen className="h-4 w-4" />
-          My course
+          Courses
         </button>
         <button
           className={getButtonClasses("add-result")}
@@ -48,6 +48,15 @@ function SideBar({ teacherSession, onRouteChange, currentRoute }) {
           <FilePlus className="h-4 w-4" />
           Add Result
         </button>
+        {isAdmin && (
+          <button
+            className={getButtonClasses("teachers")}
+            onClick={() => onRouteChange?.("teachers")}
+          >
+            <Users className="h-4 w-4" />
+            Teachers
+          </button>
+        )}
         {isAdmin && (
           <button
             className={getButtonClasses("register-teacher")}

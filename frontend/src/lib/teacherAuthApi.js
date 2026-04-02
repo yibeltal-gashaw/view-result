@@ -74,6 +74,24 @@ export async function createTeacherAccount({ token, payload }) {
   return data;
 }
 
+export async function fetchAdminUsers({ token }) {
+  const response = await fetch(getAdminUsersEndpoint(), {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await readJsonResponse(response);
+
+  if (!response.ok) {
+    throw buildApiError(data, "Unable to load users.");
+  }
+
+  return Array.isArray(data?.users) ? data.users : [];
+}
+
 export function persistTeacherSession(session) {
   window.localStorage.setItem(
     TEACHER_AUTH_STORAGE_KEY,

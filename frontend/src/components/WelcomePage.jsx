@@ -1,39 +1,41 @@
 import hero from "../assets/hero.png";
+import logo from "../assets/logo.png";
 
 function WelcomePage({ onGetStarted, onTeacherLogin }) {
   return (
     <>
+      <header className="mb-6 flex items-center justify-between rounded-4xl border border-amber-50/10 bg-slate-950/45 px-5 py-4 shadow-[0_12px_30px_rgba(3,7,18,0.35)] backdrop-blur-[14px]">
+        <div className="flex items-center gap-3">
+          <img src={logo} alt="ExamResult logo" className="h-10 w-10 rounded-lg object-contain" />
+          <span className="text-xl font-bold text-amber-200">ExamResult</span>
+        </div>
+        <nav className="flex items-center gap-6 text-sm font-medium text-slate-200">
+          <a href="#features" className="transition hover:text-white">Features</a>
+          <a href="#why" className="transition hover:text-white">Why Us</a>
+          <a href="#contact" className="rounded-full border border-amber-200 px-4 py-2 text-amber-200 transition hover:bg-amber-200/20 hover:text-white">Contact</a>
+          <button
+            type="button"
+            onClick={onTeacherLogin}
+            className="rounded-full bg-amber-400 px-4 py-2 font-semibold text-slate-950 shadow hover:bg-amber-300 cursor-pointer"
+          >
+            Login
+          </button>
+        </nav>
+      </header>
       <section className="relative mb-5 grid items-center gap-5 overflow-hidden rounded-4xl border border-amber-50/10 bg-slate-950/45 p-7 shadow-[0_28px_90px_rgba(3,7,18,0.38)] backdrop-blur-[18px] lg:grid-cols-[minmax(0,1.25fr)_minmax(220px,0.9fr)_auto]">
         <div className="pointer-events-none absolute -bottom-36 -right-32 h-75 w-75 rounded-full bg-radial-[at_center] from-amber-400/20 to-transparent blur-xl" />
 
         <div className="relative z-10">
           <p className="text-[0.72rem] uppercase tracking-[0.16em] text-slate-400">
-            HiLCoE Student Result Portal
+            Mau Student Result Portal
           </p>
-          <h1 className="mt-2 max-w-[11ch] font-serif text-[clamp(2.4rem,6vw,4.3rem)] leading-[0.96] tracking-[-0.04em] text-slate-50">
-            Find your result in a calm, polished space built for mobile.
+          <h1 className="mt-2 max-w-[13ch] font-serif text-[clamp(2.4rem,6vw,4.3rem)] leading-[0.96] tracking-[-0.04em] text-slate-50">
+            Get your exam results instantly with clear analytics and score breakdowns.
           </h1>
           <p className="mt-4 max-w-[40ch] text-[1.03rem] leading-[1.65] text-slate-300">
             Search by year, course, and student ID, then get a clean result
             slip with your score breakdown in seconds.
           </p>
-
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <button
-              className="min-h-14 rounded-full bg-linear-to-r from-amber-300 via-amber-500 to-orange-500 px-6 font-bold text-stone-950 shadow-[0_18px_38px_rgba(245,158,11,0.24)] transition duration-200 ease-out hover:-translate-y-px hover:brightness-105 hover:shadow-[0_22px_42px_rgba(245,158,11,0.3)]"
-              type="button"
-              onClick={onGetStarted}
-            >
-              Get Started
-            </button>
-            <button
-              className="min-h-14 rounded-full border border-white/12 bg-white/6 px-6 font-semibold text-slate-100 transition duration-200 ease-out hover:-translate-y-px hover:border-sky-400/45 hover:bg-sky-400/10"
-              type="button"
-              onClick={onTeacherLogin}
-            >
-              Teacher Login
-            </button>
-          </div>
         </div>
 
         <div
@@ -49,6 +51,50 @@ function WelcomePage({ onGetStarted, onTeacherLogin }) {
           />
         </div>
       </section>
+
+      <section id="features" className="mb-6 rounded-4xl border border-amber-50/10 bg-slate-900/55 p-6 shadow-[0_20px_60px_rgba(3,7,18,0.35)] backdrop-blur-[14px]">
+        <h2 className="mb-4 text-center text-2xl font-semibold text-amber-200">Features</h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          <article className="rounded-2xl border border-slate-700 bg-slate-950/80 p-5">
+            <h3 className="mb-2 text-lg font-bold text-sky-200">Smart Search</h3>
+            <p className="text-sm leading-relaxed text-slate-300">Search by year, course, student ID, and get instant, accurate result slips in milliseconds.</p>
+          </article>
+          <article className="rounded-2xl border border-slate-700 bg-slate-950/80 p-5">
+            <h3 className="mb-2 text-lg font-bold text-sky-200">Clean UI</h3>
+            <p className="text-sm leading-relaxed text-slate-300">Optimized for mobile and desktop with accessible layouts, readability and speedy interactions.</p>
+          </article>
+          <article className="rounded-2xl border border-slate-700 bg-slate-950/80 p-5">
+            <h3 className="mb-2 text-lg font-bold text-sky-200">Secure Access</h3>
+            <p className="text-sm leading-relaxed text-slate-300">Login with token protection ensures only authorized personnel can upload and manage results.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="why" className="mb-6 rounded-4xl border border-amber-50/10 bg-slate-900/55 p-6 shadow-[0_20px_60px_rgba(3,7,18,0.35)] backdrop-blur-[14px]">
+        <h2 className="mb-4 text-center text-2xl font-semibold text-amber-200">Why ExamResult?</h2>
+        <ul className="mx-auto max-w-4xl space-y-3 text-slate-300">
+          <li className="rounded-xl border border-slate-700 bg-slate-950/80 p-4">
+            <strong className="text-sky-200">Reliability:</strong> Data is served quickly from a robust database with filters to show exactly what students need.
+          </li>
+          <li className="rounded-xl border border-slate-700 bg-slate-950/80 p-4">
+            <strong className="text-sky-200">Transparency:</strong> Full score breakdowns and grade insights help students understand performance and improvement areas.
+          </li>
+          <li className="rounded-xl border border-slate-700 bg-slate-950/80 p-4">
+            <strong className="text-sky-200">Efficiency:</strong> Teachers save hours on result processing and distribution with one-click uploads and search-ready records.
+          </li>
+        </ul>
+      </section>
+
+      <footer className="mt-8 rounded-4xl border border-slate-700 bg-slate-950/70 p-6 text-slate-300 shadow-[0_16px_40px_rgba(0,0,0,0.25)]">
+        <div className="mx-auto flex flex-col items-center justify-between gap-4 md:flex-row md:px-4">
+          <p className="text-sm text-slate-300">
+            &copy; {new Date().getFullYear()} ExamResult. All rights reserved.
+          </p>
+          <div className="flex gap-4 text-sm">
+            <a href="#" className="text-amber-200 hover:text-amber-100">Made with Love 💖</a>
+          </div>
+        </div>
+      </footer>
     </>
   );
 }

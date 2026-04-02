@@ -4,8 +4,10 @@ const {
   getCourses,
   getHealth,
   getAnalytics,
+  getTeacherCourseResults,
   getStudentResult,
   login,
+  patchTeacherCourseResult,
   uploadTeacherResults,
 } = require("../controllers/resultController");
 const { requireAuth, requireRole } = require("../middleware/auth");
@@ -33,6 +35,18 @@ router.post(
   requireAuth,
   requireRole("ADMIN", "TEACHER"),
   uploadTeacherResults,
+);
+router.get(
+  "/api/teacher/course-results",
+  requireAuth,
+  requireRole("ADMIN", "TEACHER"),
+  getTeacherCourseResults,
+);
+router.patch(
+  "/api/teacher/course-results/:resultId",
+  requireAuth,
+  requireRole("ADMIN", "TEACHER"),
+  patchTeacherCourseResult,
 );
 
 module.exports = router;

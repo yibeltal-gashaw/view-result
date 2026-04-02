@@ -1,11 +1,70 @@
-import { useEffect, useState } from "react";
-import { BookOpen } from "lucide-react";
-import { fetchCourses } from "../lib/resultApi";
+import { useEffect, useMemo, useState } from "react";
+import { BookOpen, Pencil, Save, X } from "lucide-react";
+import { readTeacherSession } from "../lib/teacherAuthApi";
 
 function MyCourse() {
-  const [courses, setCourses] = useState([]);
+  const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchName, setSearchName] = useState("");
+  const teacherCourse = useMemo(() => {
+    const session = readTeacherSession();
+    return String(session?.user?.course || "").trim().toLowerCase();
+  }, []);
+
+  const [editingId, setEditingId] = useState(null);
+  const [editTotal, setEditTotal] = useState("");
+  const [editGrade, setEditGrade] = useState("");
+  const [editAssessments, setEditAssessments] = useState({});
+  const [saveStatus, setSaveStatus] = useState("idle");
+
+  function getApiBaseUrl() {
+    return import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "";
+  }
+
+  function getCourseResultsEndpoint() {
+    const base = getApiBaseUrl();
+    return base ? `${base}/api/teacher/course-results` : "/api/teacher/course-results";
+  }
+
+  function getPatchResultEndpoint(resultId) {
+    const base = getApiBaseUrl();
+    return base
+      ? `${base}/api/teacher/course-results/${encodeURIComponent(resultId)}`
+      : `/api/teacher/course-results/${encodeURIComponent(resultId)}`;
+  }
+
+  const sortedResults = useMemo(() => {
+    if (!Array.isArray(results)) return [];
+    return [...results].sort((a, b) => {
+      const yearA = Number(a?.year ?? 0);
+      const yearB = Number(b?.year ?? 0);
+      if (yearA !== yearB) return yearA - yearB;
+      return String(a?.studentId || "").localeCompare(String(b?.studentId || ""));
+    });
+  }, [results]);
+
+  const filteredResults = useMemo(() => {
+    const query = searchName.trim().toLowerCase();
+    if (!query) return sortedResults;
+
+    return sortedResults.filter((row) => {
+      const fullName = String(
+        row.fullName || `${row.firstName || ""} ${row.fatherName || ""}`.trim(),
+      )
+        .trim()
+        .toLowerCase();
+      return fullName.includes(query);
+    });
+  }, [sortedResults, searchName]);
+
+  const assessmentKeys = useMemo(() => {
+    const keys = new Set();
+    sortedResults.forEach((row) => {
+      Object.keys(row?.assessments || {}).forEach((key) => keys.add(key));
+    });
+    return Array.from(keys).sort((a, b) => a.localeCompare(b));
+  }, [sortedResults]);
 
   useEffect(() => {
     let cancelled = false;
@@ -15,8 +74,26 @@ function MyCourse() {
       setError("");
 
       try {
-        const nextCourses = await fetchCourses();
-        if (!cancelled) setCourses(nextCourses);
+        const session = readTeacherSession();
+        const token = session?.token || "";
+
+        const response = await fetch(getCourseResultsEndpoint(), {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+
+        const rawText = await response.text();
+        const payload = rawText ? JSON.parse(rawText) : null;
+
+        if (!response.ok) {
+          throw new Error(payload?.message || "Unable to load course results.");
+        }
+
+        const nextResults = Array.isArray(payload?.results) ? payload.results : [];
+        if (!cancelled) setResults(nextResults);
       } catch (err) {
         if (!cancelled) setError(err?.message || "Unable to load courses.");
       } finally {
@@ -30,6 +107,93 @@ function MyCourse() {
     };
   }, []);
 
+  function startEdit(row) {
+    setEditingId(row.id);
+    setEditTotal(row.total ?? "");
+    setEditGrade(row.grade ?? "");
+    setEditAssessments({ ...(row.assessments || {}) });
+    setSaveStatus("idle");
+    setError("");
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditTotal("");
+    setEditGrade("");
+    setEditAssessments({});
+    setSaveStatus("idle");
+  }
+
+  async function saveEdit(resultId) {
+    setSaveStatus("saving");
+    setError("");
+
+    try {
+      const session = readTeacherSession();
+      const token = session?.token || "";
+      const normalizedAssessments = Object.entries(editAssessments || {}).reduce(
+        (current, [key, value]) => {
+          if (value === "" || value === null || value === undefined) {
+            return current;
+          }
+
+          const numericValue =
+            typeof value === "number" ? value : Number(String(value).trim());
+          if (!Number.isFinite(numericValue)) {
+            throw new Error(`Assessment "${key}" must be numeric.`);
+          }
+
+          current[key] = numericValue;
+          return current;
+        },
+        {},
+      );
+
+      const response = await fetch(getPatchResultEndpoint(resultId), {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          total: editTotal,
+          grade: editGrade,
+          assessments: normalizedAssessments,
+        }),
+      });
+
+      const rawText = await response.text();
+      const payload = rawText ? JSON.parse(rawText) : null;
+
+      if (!response.ok) {
+        throw new Error(payload?.message || "Unable to update result.");
+      }
+
+      const updated = payload?.result;
+      if (!updated) {
+        throw new Error("The update service returned an invalid response.");
+      }
+
+      setResults((current) =>
+        Array.isArray(current)
+          ? current.map((row) => (row.id === updated.id ? updated : row))
+          : current,
+      );
+      setSaveStatus("saved");
+      cancelEdit();
+    } catch (err) {
+      setSaveStatus("error");
+      setError(err?.message || "Unable to update result.");
+    }
+  }
+
+  function handleAssessmentChange(key, value) {
+    setEditAssessments((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
   return (
     <div className="space-y-8">
       <div className="mb-8">
@@ -38,7 +202,7 @@ function MyCourse() {
           My course
         </h1>
         <p className="text-slate-300">
-          Courses available in the system (from backend).
+          Showing results for your assigned course{teacherCourse ? ` (${teacherCourse})` : ""}.
         </p>
       </div>
 
@@ -49,21 +213,168 @@ function MyCourse() {
       ) : null}
 
       <div className="rounded-2xl border border-white/8 bg-white/5 p-6">
+        <div className="mb-4">
+          <label className="block text-xs font-medium uppercase tracking-[0.12em] text-slate-400 mb-2">
+            Search by student name
+          </label>
+          <input
+            type="text"
+            value={searchName}
+            onChange={(e) => setSearchName(e.target.value)}
+            placeholder="e.g. Ephrem Babu"
+            className="w-full max-w-sm rounded-md border border-white/12 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-400/60"
+          />
+        </div>
+
         {isLoading ? (
           <p className="text-slate-400">Loading...</p>
-        ) : courses.length === 0 ? (
-          <p className="text-slate-300">No courses found.</p>
+        ) : !teacherCourse ? (
+          <p className="text-slate-300">
+            No course assigned to this teacher account yet.
+          </p>
+        ) : filteredResults.length === 0 ? (
+          <p className="text-slate-300">
+            No students matched your search.
+          </p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {courses.map((course) => (
-              <div
-                className="rounded-xl border border-white/8 bg-slate-950/30 p-4"
-                key={course.value || course.label}
-              >
-                <p className="text-slate-50 font-semibold">{course.label}</p>
-                <p className="text-xs text-slate-400 mt-1">{course.value}</p>
-              </div>
-            ))}
+          <div className="overflow-x-auto rounded-2xl border border-white/8">
+            <table className="min-w-full divide-y divide-white/8 text-left text-xs">
+              <thead className="bg-white/6">
+                <tr>
+                  <th className="whitespace-nowrap px-3 py-2 font-medium text-slate-200">
+                    Student ID
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-2 font-medium text-slate-200">
+                    Name
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-2 font-medium text-slate-200">
+                    Year
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-2 font-medium text-slate-200">
+                    Sex
+                  </th>
+                  {assessmentKeys.map((key) => (
+                    <th
+                      className="whitespace-nowrap px-3 py-2 font-medium text-slate-200"
+                      key={key}
+                    >
+                      {key}
+                    </th>
+                  ))}
+                  <th className="whitespace-nowrap px-3 py-2 font-medium text-slate-200">
+                    Total
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-2 font-medium text-slate-200">
+                    Grade
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-2 font-medium text-slate-200">
+                    Updated
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-2 font-medium text-slate-200">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/6 bg-slate-950/40">
+                {filteredResults.map((row) => {
+                  const isEditing = editingId === row.id;
+                  const updatedAt = row.updatedAt
+                    ? new Date(row.updatedAt).toLocaleString()
+                    : "-";
+
+                  return (
+                    <tr key={row.id}>
+                      <td className="whitespace-nowrap px-3 py-1.5 text-slate-200">
+                        {row.studentId}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-1.5 text-slate-200">
+                        {row.fullName || `${row.firstName || ""} ${row.fatherName || ""}`.trim() || "-"}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-1.5 text-slate-300">
+                        {row.year}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-1.5 text-slate-300">
+                        {row.sex || "-"}
+                      </td>
+                      {assessmentKeys.map((key) => (
+                        <td className="whitespace-nowrap px-3 py-1.5 text-slate-200" key={`${row.id}-${key}`}>
+                          {isEditing ? (
+                            <input
+                              className="w-16 rounded-md border border-white/12 bg-slate-950/70 px-2 py-1 text-xs text-slate-100 outline-none focus:border-emerald-400/60"
+                              value={editAssessments?.[key] ?? ""}
+                              onChange={(e) => handleAssessmentChange(key, e.target.value)}
+                            />
+                          ) : (
+                            (row.assessments && row.assessments[key]) ?? "-"
+                          )}
+                        </td>
+                      ))}
+                      <td className="whitespace-nowrap px-3 py-1.5 text-slate-200">
+                        {isEditing ? (
+                          <input
+                            className="w-20 rounded-md border border-white/12 bg-slate-950/70 px-2 py-1 text-xs text-slate-100 outline-none focus:border-emerald-400/60"
+                            value={editTotal}
+                            onChange={(e) => setEditTotal(e.target.value)}
+                          />
+                        ) : (
+                          row.total
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-1.5 text-slate-200">
+                        {isEditing ? (
+                          <input
+                            className="w-16 rounded-md border border-white/12 bg-slate-950/70 px-2 py-1 text-xs text-slate-100 outline-none focus:border-emerald-400/60"
+                            value={editGrade}
+                            onChange={(e) => setEditGrade(e.target.value)}
+                            placeholder="auto"
+                          />
+                        ) : (
+                          row.grade || "-"
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-1.5 text-slate-400">
+                        {updatedAt}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-1.5">
+                        {isEditing ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              className="inline-flex items-center gap-1 rounded-md border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-xs font-semibold text-emerald-100 hover:bg-emerald-400/15 disabled:opacity-50"
+                              type="button"
+                              disabled={saveStatus === "saving"}
+                              onClick={() => saveEdit(row.id)}
+                              title="Save"
+                            >
+                              <Save className="h-4 w-4" />
+                              Save
+                            </button>
+                            <button
+                              className="inline-flex items-center gap-1 rounded-md border border-white/12 bg-white/6 px-2 py-1 text-xs font-semibold text-slate-100 hover:bg-white/10"
+                              type="button"
+                              onClick={cancelEdit}
+                              title="Cancel"
+                            >
+                              <X className="h-4 w-4" />
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            className="inline-flex items-center gap-1 rounded-md border border-white/12 bg-white/6 px-2 py-1 text-xs font-semibold text-slate-100 hover:bg-white/10"
+                            type="button"
+                            onClick={() => startEdit(row)}
+                            title="Edit"
+                          >
+                            <Pencil className="h-4 w-4" />
+                            Edit
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

@@ -6,6 +6,11 @@ const {
 const { createUser, loginUser } = require("../services/authService");
 const { uploadCourseResults } = require("../services/uploadService");
 const { getAnalyticsData } = require("../services/analyticsService");
+const {
+  listCourseResults,
+  updateCourseResult,
+} = require("../services/teacherCourseResultsService");
+const { prisma } = require("../config/database");
 const { normalizeOptionalText, normalizeStudentId } = require("../utils/text");
 
 function getHealth(req, res) {
@@ -89,6 +94,69 @@ async function getAnalytics(req, res) {
   }
 }
 
+async function getTeacherCourseResults(req, res) {
+  try {
+    const requestedCourse =
+      req.user.course
+
+    if (!requestedCourse) {
+      return res.status(400).json({
+        message: "Course is required.",
+      });
+    }
+
+    const results = await listCourseResults({ course: requestedCourse });
+    return res.json({ course: requestedCourse, results });
+  } catch (error) {
+    console.error("Teacher course results API error:", error);
+    return res.status(500).json({
+      message: "Unable to load course results right now.",
+    });
+  }
+}
+
+async function patchTeacherCourseResult(req, res) {
+  try {
+    const resultId = req.params.resultId;
+    const numericId = Number(resultId);
+
+    if (!Number.isFinite(numericId)) {
+      return res.status(400).json({ message: "Invalid result id." });
+    }
+
+    const existing = await prisma.result.findUnique({
+      where: { id: numericId },
+      select: { id: true, course: true },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ message: "Result not found." });
+    }
+
+    const teacherCourse = normalizeOptionalText(req.user?.course).toLowerCase();
+    if (
+      req.user?.role !== "ADMIN" &&
+      (!teacherCourse || existing.course !== teacherCourse)
+    ) {
+      return res.status(403).json({
+        message: "You do not have access to update this result.",
+      });
+    }
+
+    const outcome = await updateCourseResult({
+      resultId,
+      updates: req.body || {},
+    });
+
+    return res.status(outcome.status).json(outcome.body);
+  } catch (error) {
+    console.error("Teacher course update API error:", error);
+    return res.status(500).json({
+      message: "Unable to update the result right now.",
+    });
+  }
+}
+
 async function login(req, res) {
   try {
     const result = await loginUser(req.body);
@@ -118,6 +186,8 @@ module.exports = {
   getCourses,
   getHealth,
   getAnalytics,
+  getTeacherCourseResults,
+  patchTeacherCourseResult,
   getStudentResult,
   login,
   uploadTeacherResults,

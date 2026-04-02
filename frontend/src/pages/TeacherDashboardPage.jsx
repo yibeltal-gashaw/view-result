@@ -6,38 +6,7 @@ import {
   readTeacherSession,
   uploadTeacherResults,
 } from "../lib/teacherAuthApi";
-
-const SAMPLE_HEADERS = [
-  "Student ID",
-  "First Name",
-  "Father Name",
-  "Sex",
-  "year",
-  "course",
-  "mid exam",
-  "quiz",
-  "lab",
-  "project",
-  "final exam",
-  "total",
-  "grade",
-];
-
-const SAMPLE_ROW = [
-  "MAU1602154",
-  "Abel",
-  "Kebede",
-  "M",
-  "3",
-  "fss",
-  "18",
-  "9",
-  "14",
-  "16",
-  "38",
-  "95",
-  "A",
-];
+import { SAMPLE_HEADERS, SAMPLE_ROW } from "../config/teacherMockData";
 
 const REQUIRED_HEADERS = ["Student ID", "total"];
 const RESERVED_HEADERS = new Set([

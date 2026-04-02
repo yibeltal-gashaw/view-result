@@ -6,21 +6,8 @@ import {
   readTeacherSession,
   uploadTeacherResults,
 } from "../lib/teacherAuthApi";
-import { SAMPLE_HEADERS, SAMPLE_ROW } from "../config/teacherMockData";
-
-const REQUIRED_HEADERS = ["Student ID", "total"];
-const RESERVED_HEADERS = new Set([
-  "Student ID",
-  "First Name",
-  "Father Name",
-  "Sex",
-  "year",
-  "Year",
-  "course",
-  "Course",
-  "total",
-  "grade",
-]);
+import { SAMPLE_HEADERS, SAMPLE_ROW, RESERVED_HEADERS,REQUIRED_HEADERS } from "../config/teacherMockData";
+import SideBar from "../components/SideBar";
 
 function TeacherDashboardPage() {
   const navigate = useNavigate();
@@ -272,47 +259,7 @@ function TeacherDashboardPage() {
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(234,179,8,0.14),transparent_28%),radial-gradient(circle_at_85%_10%,rgba(14,165,233,0.2),transparent_30%),linear-gradient(135deg,#120f0d_0%,#1f1b18_45%,#111827_100%)] text-slate-50">
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02),rgba(255,255,255,0.02)),radial-gradient(circle_at_center,transparent_0_62%,rgba(0,0,0,0.16)_100%)] opacity-85" />
       <div className="relative grid min-h-screen lg:grid-cols-[290px_minmax(0,1fr)]">
-        <aside className="border-b border-white/8 bg-slate-950/75 p-6 backdrop-blur-xl lg:border-b-0 lg:border-r">
-          <div>
-            <p className="text-[0.72rem] uppercase tracking-[0.16em] text-slate-400">
-              Teachers Dashboard
-            </p>
-            <h1 className="mt-3 font-serif text-4xl leading-[0.95] tracking-[-0.04em] text-slate-50">
-              Result Control
-            </h1>
-            <p className="mt-4 text-sm leading-7 text-slate-300">
-              Upload different course results, manage assessment structures, and
-              control teacher access from one protected workspace.
-            </p>
-          </div>
-
-          <div className="mt-8 rounded-3xl border border-white/8 bg-white/5 p-5">
-            <span className="text-xs uppercase tracking-[0.16em] text-slate-400">
-              Logged In As
-            </span>
-            <strong className="mt-3 block wrap-break-word text-lg text-slate-50">
-              {teacherSession?.user?.email || "Teacher session not found"}
-            </strong>
-            <span className="mt-2 inline-flex rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-semibold tracking-[0.14em] text-emerald-100">
-              {teacherSession?.user?.role || "No role"}
-            </span>
-          </div>
-
-          <div className="mt-6 grid gap-3">
-            <SidebarCard
-              title="CSV Upload"
-              description="Parse files first, detect assessment columns, and send JSON batches safely."
-            />
-            <SidebarCard
-              title="Validation"
-              description="Catch missing columns and row-level issues before anything reaches the database."
-            />
-            <SidebarCard
-              title="Course Aware"
-              description="Handle different courses with different assessment structures from the same dashboard."
-            />
-          </div>
-        </aside>
+        <SideBar teacherSession={teacherSession} />
 
         <div className="min-w-0 px-4 py-5 sm:px-6">
           <header className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-[28px] border border-amber-50/10 bg-slate-950/45 p-5 shadow-[0_28px_90px_rgba(3,7,18,0.38)] backdrop-blur-[18px]">
@@ -760,14 +707,7 @@ function TeacherDashboardPage() {
   );
 }
 
-function SidebarCard({ title, description }) {
-  return (
-    <article className="rounded-3xl border border-white/8 bg-white/5 p-5">
-      <h3 className="text-base font-semibold text-slate-50">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-slate-300">{description}</p>
-    </article>
-  );
-}
+
 
 function StatCard({ label, value }) {
   return (

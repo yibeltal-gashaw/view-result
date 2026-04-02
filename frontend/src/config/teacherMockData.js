@@ -29,3 +29,16 @@ export const SAMPLE_ROW = [
   "95",
   "A",
 ];
+export const REQUIRED_HEADERS = ["Student ID", "total"];
+export const RESERVED_HEADERS = new Set([
+  "Student ID",
+  "First Name",
+  "Father Name",
+  "Sex",
+  "year",
+  "Year",
+  "course",
+  "Course",
+  "total",
+  "grade",
+]);

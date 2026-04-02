@@ -9,7 +9,7 @@ import {
 import { SAMPLE_HEADERS, SAMPLE_ROW, RESERVED_HEADERS,REQUIRED_HEADERS } from "../config/teacherMockData";
 import SideBar from "../components/SideBar";
 
-function TeacherDashboardPage() {
+function AddResult() {
   const navigate = useNavigate();
   const [fileName, setFileName] = useState("");
   const [headers, setHeaders] = useState([]);
@@ -256,10 +256,7 @@ function TeacherDashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(234,179,8,0.14),transparent_28%),radial-gradient(circle_at_85%_10%,rgba(14,165,233,0.2),transparent_30%),linear-gradient(135deg,#120f0d_0%,#1f1b18_45%,#111827_100%)] text-slate-50">
-      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02),rgba(255,255,255,0.02)),radial-gradient(circle_at_center,transparent_0_62%,rgba(0,0,0,0.16)_100%)] opacity-85" />
-      <div className="relative grid min-h-screen lg:grid-cols-[290px_minmax(0,1fr)]">
-        <SideBar teacherSession={teacherSession} />
+    <main >
 
         <div className="min-w-0 px-4 py-5 sm:px-6">
           <header className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-[28px] border border-amber-50/10 bg-slate-950/45 p-5 shadow-[0_28px_90px_rgba(3,7,18,0.38)] backdrop-blur-[18px]">
@@ -605,8 +602,6 @@ function TeacherDashboardPage() {
           </div>
         </section>
         </div>
-      </div>
-
       {isAdmin && showRegisterTeacher ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm">
           <div className="absolute inset-0" onClick={() => setShowRegisterTeacher(false)} />
@@ -855,4 +850,4 @@ function buildSuccessMessage(result) {
   return `Uploaded successfully. Student profiles added: ${studentUpserts}. Course results added: ${resultUpserts}. Existing course results matched: ${resultMatches}.`;
 }
 
-export default TeacherDashboardPage;
+export default AddResult;

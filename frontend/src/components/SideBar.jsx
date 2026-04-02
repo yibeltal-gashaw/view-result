@@ -1,10 +1,19 @@
+import { Home, FilePlus, Settings2, UserPlus } from "lucide-react";
 import logo from "../assets/logo.png";
 
-function SideBar({ teacherSession, onRouteChange }) {
+function SideBar({ teacherSession, onRouteChange, currentRoute }) {
   const isAdmin = teacherSession?.user?.role === "ADMIN";
 
+  const getButtonClasses = (route) => {
+    const baseClasses = "flex w-full items-center gap-2 rounded-xl px-4 py-2 text-left text-sm font-semibold transition-colors";
+    const activeClasses = currentRoute === route
+      ? "bg-amber-400/20 text-amber-100 border border-amber-400/30"
+      : "text-amber-200 hover:bg-white/10";
+    return `${baseClasses} ${activeClasses}`;
+  };
+
   return (
-    <aside className="border-b border-white/8 bg-slate-950/75 p-6 backdrop-blur-xl lg:border-b-0 lg:border-r">
+    <aside className="w-72 flex-shrink-0 border-b border-white/8 bg-slate-950/75 p-6 backdrop-blur-xl lg:border-b-0 lg:border-r lg:max-h-screen lg:overflow-y-auto">
       <div className="mb-8 flex items-center gap-3">
         <div className="h-11 w-11 rounded-xl bg-linear-to-br from-amber-400 to-fuchsia-500">
           <img src={logo} alt="Logo" className="h-full w-full object-contain" />
@@ -19,31 +28,35 @@ function SideBar({ teacherSession, onRouteChange }) {
 
       <nav className="space-y-2">
         <button
-          className="w-full rounded-xl px-4 py-2 text-left text-sm font-semibold text-amber-200 hover:bg-white/10"
+          className={getButtonClasses("home")}
           onClick={() => onRouteChange?.("home")}
         >
-          Home
+          <Home className="h-4 w-4" />
+          Home (Analytics)
         </button>
         <button
-          className="w-full rounded-xl px-4 py-2 text-left text-sm font-semibold text-amber-200 hover:bg-white/10"
+          className={getButtonClasses("add-result")}
           onClick={() => onRouteChange?.("add-result")}
         >
+          <FilePlus className="h-4 w-4" />
           Add Result
+        </button>
+        <button
+          className={getButtonClasses("settings")}
+          onClick={() => onRouteChange?.("settings")}
+        >
+          <Settings2 className="h-4 w-4" />
+          Settings
         </button>
         {isAdmin && (
           <button
-            className="w-full rounded-xl px-4 py-2 text-left text-sm font-semibold text-amber-200 hover:bg-white/10"
+            className={getButtonClasses("register-teacher")}
             onClick={() => onRouteChange?.("register-teacher")}
           >
+            <UserPlus className="h-4 w-4" />
             Register Teacher
           </button>
         )}
-        <button
-          className="w-full rounded-xl px-4 py-2 text-left text-sm font-semibold text-amber-200 hover:bg-white/10"
-          onClick={() => onRouteChange?.("settings")}
-        >
-          Settings
-        </button>
       </nav>
     </aside>
   );

@@ -1,9 +1,10 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { readTeacherSession } from "./lib/teacherAuthApi";
 import ResultPage from "./pages/ResultPage";
-import TeacherDashboardPage from "./pages/TeacherDashboardPage";
 import TeacherLoginPage from "./pages/TeacherLoginPage";
 import WelcomeRoute from "./pages/WelcomeRoute";
+import DashboardLayout from "./components/DashboardLayout";
+import AddResult from "./pages/AddResult";
 
 function App() {
   return (
@@ -15,7 +16,15 @@ function App() {
         path="/teachers/dashboard"
         element={(
           <ProtectedTeacherRoute>
-            <TeacherDashboardPage />
+            <DashboardLayout />
+          </ProtectedTeacherRoute>
+        )}
+      />
+      <Route
+      path="/teachers/add-result"
+        element={(
+          <ProtectedTeacherRoute>
+            <AddResult />
           </ProtectedTeacherRoute>
         )}
       />

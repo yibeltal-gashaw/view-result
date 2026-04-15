@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Users, BookOpen, Calendar, TrendingUp, Award, Target } from 'lucide-react';
 
+import { buildApiUrl } from '../lib/apiBaseUrl';
 import { readTeacherSession } from '../lib/teacherAuthApi';
 
 const defaultAnalyticsData = {
@@ -14,8 +15,7 @@ const defaultAnalyticsData = {
 };
 
 function getAnalyticsEndpoint() {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || '';
-  return apiBaseUrl ? `${apiBaseUrl}/api/admin/analytics` : '/api/admin/analytics';
+  return buildApiUrl('/api/admin/analytics');
 }
 
 function Analytics() {

@@ -1,9 +1,9 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "";
+import { buildApiUrl, getApiBaseUrl } from "./apiBaseUrl";
 
 export function getResultEndpoint(studentId, year, course) {
+  const apiBaseUrl = getApiBaseUrl();
   const endpoint = new URL(
-    `${API_BASE_URL}/api/results/${encodeURIComponent(studentId)}`,
+    buildApiUrl(`/api/results/${encodeURIComponent(studentId)}`),
     window.location.origin,
   );
 
@@ -16,15 +16,15 @@ export function getResultEndpoint(studentId, year, course) {
   }
 
   const queryString = endpoint.searchParams.toString();
-  const basePath = API_BASE_URL
-    ? `${API_BASE_URL}/api/results/${encodeURIComponent(studentId)}`
+  const basePath = apiBaseUrl
+    ? buildApiUrl(`/api/results/${encodeURIComponent(studentId)}`)
     : endpoint.pathname;
 
   return queryString ? `${basePath}?${queryString}` : basePath;
 }
 
 export function getCoursesEndpoint() {
-  return API_BASE_URL ? `${API_BASE_URL}/api/courses` : "/api/courses";
+  return buildApiUrl("/api/courses");
 }
 
 export async function fetchCourses() {
@@ -63,7 +63,7 @@ export async function readApiResponse(response) {
 
   if (!data) {
     throw new Error(
-      API_BASE_URL
+      getApiBaseUrl()
         ? "The result service returned an invalid response."
         : "The mini app is not connected to the backend. Set VITE_API_BASE_URL to your API server.",
     );

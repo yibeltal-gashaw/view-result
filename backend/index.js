@@ -9,6 +9,11 @@ const cors = require("cors");
 const app = express();
 const PORT = process.env.PORT || 3000;
 const bot = createBot();
+const allowedOrigins = [
+  "https://mau-examresult.netlify.app",
+  "https://mau-exam-result.onrender.com",
+  "http://localhost:5173",
+];
 
 async function startServer() {
   await connectToDatabase();
@@ -17,10 +22,13 @@ async function startServer() {
   app.use(express.json());
   app.use(
     cors({
-      origin: [
-        "https://mau-examresult.netlify.app",
-        "http://localhost:5173",
-      ],
+      origin(origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+
+        return callback(new Error("CORS origin not allowed"));
+      },
       methods: ["GET", "POST","PATCH", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization"],
       credentials: true,

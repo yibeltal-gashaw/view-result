@@ -1,20 +1,17 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "";
+import { buildApiUrl } from "./apiBaseUrl";
 
 const TEACHER_AUTH_STORAGE_KEY = "teacher_auth_session";
 
 export function getTeacherLoginEndpoint() {
-  return API_BASE_URL ? `${API_BASE_URL}/api/auth/login` : "/api/auth/login";
+  return buildApiUrl("/api/auth/login");
 }
 
 export function getTeacherUploadEndpoint() {
-  return API_BASE_URL
-    ? `${API_BASE_URL}/api/teacher/results/upload`
-    : "/api/teacher/results/upload";
+  return buildApiUrl("/api/teacher/results/upload");
 }
 
 export function getAdminUsersEndpoint() {
-  return API_BASE_URL ? `${API_BASE_URL}/api/admin/users` : "/api/admin/users";
+  return buildApiUrl("/api/admin/users");
 }
 
 export async function loginTeacher({ email, password }) {

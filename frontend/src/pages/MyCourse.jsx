@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Filter, Pencil, Save, X } from "lucide-react";
+import { buildApiUrl } from "../lib/apiBaseUrl";
 import { readTeacherSession } from "../lib/teacherAuthApi";
 
 function MyCourse() {
@@ -27,20 +28,12 @@ function MyCourse() {
   const [editAssessments, setEditAssessments] = useState({});
   const [saveStatus, setSaveStatus] = useState("idle");
 
-  function getApiBaseUrl() {
-    return import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "";
-  }
-
   function getCourseResultsEndpoint() {
-    const base = getApiBaseUrl();
-    return base ? `${base}/api/teacher/course-results` : "/api/teacher/course-results";
+    return buildApiUrl("/api/teacher/course-results");
   }
 
   function getPatchResultEndpoint(resultId) {
-    const base = getApiBaseUrl();
-    return base
-      ? `${base}/api/teacher/course-results/${encodeURIComponent(resultId)}`
-      : `/api/teacher/course-results/${encodeURIComponent(resultId)}`;
+    return buildApiUrl(`/api/teacher/course-results/${encodeURIComponent(resultId)}`);
   }
 
   const sortedResults = useMemo(() => {
@@ -431,4 +424,3 @@ function MyCourse() {
 }
 
 export default MyCourse;
-

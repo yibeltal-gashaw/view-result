@@ -4,7 +4,7 @@ const { createBot } = require("./bot/createBot");
 const { connectToDatabase } = require("./config/database");
 const { ensureAdminUser } = require("./services/authService");
 const resultRoutes = require("./routes/resultRoutes");
-const { connectToRedis } = require("./config/redis");
+
 const cors = require("cors");
 
 const app = express();
@@ -18,7 +18,7 @@ const allowedOrigins = [
 
 async function startServer() {
   await connectToDatabase();
-  await connectToRedis();
+
   await ensureAdminUser();
 
   app.use(express.json());

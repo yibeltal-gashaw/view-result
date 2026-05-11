@@ -12,6 +12,7 @@ const defaultCourseMap = {
   cloud: "fundamentals of cloud computing",
   mad: "Mobile Application Development",
   srm: "Software risk management",
+  spm: "Software project management"
 };
 
 function parseEnvMap(value, fallback) {

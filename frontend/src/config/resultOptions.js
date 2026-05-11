@@ -11,6 +11,7 @@ const defaultCourseMap = {
   fds: "Fundamentals of Distributed Systems",
   cloud: "fundamentals of cloud computing",
   mad: "Mobile Application Development",
+  srm: "Software risk management",
 };
 
 function parseEnvMap(value, fallback) {

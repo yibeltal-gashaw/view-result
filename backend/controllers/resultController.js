@@ -17,6 +17,7 @@ const {
 } = require("../services/teacherCourseResultsService");
 const { prisma } = require("../config/database");
 const { normalizeOptionalText, normalizeStudentId } = require("../utils/text");
+const { getRedisClient } = require("../config/redis");
 
 function getHealth(req, res) {
   res.send("Telegram bot is running");
@@ -88,8 +89,17 @@ async function uploadTeacherResults(req, res) {
 }
 
 async function getAnalytics(req, res) {
+  const redis = getRedisClient();
+  const cacheKey = "analytics";
   try {
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      return res.json({ analyticsData: JSON.parse(cached) });
+    }
     const analyticsData = await getAnalyticsData();
+
+    await redis.setEx(cacheKey, 300, JSON.stringify(analyticsData)); // 5 min
+
     return res.json({ analyticsData });
   } catch (error) {
     console.error("Analytics API error:", error);

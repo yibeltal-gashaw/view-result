@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 import male from "../assets/male.png";
 import female from "../assets/female.png";
 import ResultSearchForm from "../components/ResultSearchForm";
@@ -29,6 +30,7 @@ function ResultPage() {
   const [selectedCourse, setSelectedCourse] = useState(() =>
     getInitialCourse(fallbackCourseOptions),
   );
+  console.log(availableCourses);
   const [submittedCourse, setSubmittedCourse] = useState(() =>
     getInitialCourse(fallbackCourseOptions),
   );
@@ -202,8 +204,8 @@ function ResultPage() {
 
         {displayStatus === "loading" && (
           <section className="rounded-[28px] border border-amber-50/10 bg-slate-950/45 p-6 text-center shadow-[0_28px_90px_rgba(3,7,18,0.38)] backdrop-blur-[18px]">
-            <div
-              className="mx-auto mb-4.5 h-13 w-13 animate-spin rounded-full border-4 border-white/15 border-t-sky-400"
+            <Loader2
+              className="mx-auto mb-4.5 h-13 w-13 animate-spin text-sky-400"
               aria-hidden="true"
             />
             <h2 className="font-serif text-[clamp(1.8rem,3vw,2.3rem)] leading-[1.04] text-slate-50">

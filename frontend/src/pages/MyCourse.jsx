@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Filter, Pencil, Save, X } from "lucide-react";
+import { BookOpen, Filter, Pencil, Save, X, Loader2 } from "lucide-react";
 import { buildApiUrl } from "../lib/apiBaseUrl";
 import { readTeacherSession } from "../lib/teacherAuthApi";
 
@@ -266,7 +266,10 @@ function MyCourse() {
         </div>
 
         {isLoading ? (
-          <p className="text-slate-400">Loading...</p>
+          <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+            <Loader2 className="h-8 w-8 animate-spin mb-2 text-emerald-400" />
+            <p>Loading course results...</p>
+          </div>
         ) : teacherCourses.length === 0 ? (
           <p className="text-slate-300">
             No courses assigned to this teacher account yet.
@@ -386,8 +389,12 @@ function MyCourse() {
                               onClick={() => saveEdit(row.id)}
                               title="Save"
                             >
-                              <Save className="h-4 w-4" />
-                              Save
+                              {saveStatus === "saving" ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Save className="h-4 w-4" />
+                              )}
+                              {saveStatus === "saving" ? "Saving..." : "Save"}
                             </button>
                             <button
                               className="inline-flex items-center gap-1 rounded-md border border-white/12 bg-white/6 px-2 py-1 text-xs font-semibold text-slate-100 hover:bg-white/10"

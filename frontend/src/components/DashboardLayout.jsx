@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
 import SideBar from './SideBar';
 import {
   createTeacherAccount,
@@ -225,8 +226,8 @@ function RegisterTeacherView({ teacherSession }) {
               onChange={(e) => setRole(e.target.value)}
               className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-400"
             >
-              <option value="TEACHER">Teacher</option>
-              <option value="ADMIN">Admin</option>
+              <option value="TEACHER" className="bg-slate-900 text-white">Teacher</option>
+              <option value="ADMIN" className="bg-slate-900 text-white">Admin</option>
             </select>
           </div>
 
@@ -253,7 +254,14 @@ function RegisterTeacherView({ teacherSession }) {
             disabled={isLoading}
             className="w-full px-4 py-2 bg-amber-400 text-slate-950 font-semibold rounded-lg hover:bg-amber-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {isLoading ? 'Registering...' : 'Register Teacher'}
+            {isLoading ? (
+              <div className="flex items-center justify-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Registering...</span>
+              </div>
+            ) : (
+              "Register Teacher"
+            )}
           </button>
 
           {message && (
@@ -387,7 +395,10 @@ function TeachersView({ teacherSession }) {
 
       <div className="overflow-x-auto h-full overflow-y-visible rounded-2xl border border-white/8 bg-white/5">
         {loading ? (
-          <div className="p-6 text-slate-300">Loading...</div>
+          <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+            <Loader2 className="h-8 w-8 animate-spin mb-2 text-amber-400" />
+            <p>Loading teachers...</p>
+          </div>
         ) : teachers.length === 0 ? (
           <div className="p-6 text-slate-300">No user accounts found.</div>
         ) : (
@@ -444,8 +455,8 @@ function TeachersView({ teacherSession }) {
                         className="rounded-md border border-white/20 bg-white/10 px-2 py-1 text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-400"
                         disabled={updatingTeacherId === teacher.id}
                       >
-                        <option value="TEACHER">TEACHER</option>
-                        <option value="ADMIN">ADMIN</option>
+                        <option value="TEACHER" className="bg-slate-900 text-white">TEACHER</option>
+                        <option value="ADMIN" className="bg-slate-900 text-white">ADMIN</option>
                       </select>
                     ) : (
                       <span className="rounded-md border border-white/15 bg-white/5 px-2 py-1 text-xs">

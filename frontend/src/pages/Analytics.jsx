@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users, BookOpen, Calendar, TrendingUp, Award, Target } from 'lucide-react';
+import { Users, BookOpen, Calendar, TrendingUp, Award, Target, Loader2 } from 'lucide-react';
 
 import { buildApiUrl } from '../lib/apiBaseUrl';
 import { readTeacherSession } from '../lib/teacherAuthApi';
@@ -25,7 +25,6 @@ function Analytics() {
 
   useEffect(() => {
     let cancelled = false;
-
     async function loadAnalytics() {
       setIsLoading(true);
       setError('');
@@ -33,7 +32,6 @@ function Analytics() {
       try {
         const session = readTeacherSession();
         const token = session?.token;
-
         const response = await fetch(getAnalyticsEndpoint(), {
           method: 'GET',
           headers: {
@@ -121,7 +119,10 @@ function Analytics() {
           </h2>
           <div className="space-y-4">
             {isLoading ? (
-              <p className="text-slate-400">Loading...</p>
+              <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                <Loader2 className="h-8 w-8 animate-spin mb-2" />
+                <p>Loading stats...</p>
+              </div>
             ) : (
               analyticsData.studentsByYear.map((yearData, index) => (
                 <YearCard key={index} {...yearData} />
@@ -138,7 +139,10 @@ function Analytics() {
           </h2>
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {isLoading ? (
-              <p className="text-slate-400">Loading...</p>
+              <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                <Loader2 className="h-8 w-8 animate-spin mb-2" />
+                <p>Loading departments...</p>
+              </div>
             ) : (
               analyticsData.studentsByDepartment.map((dept, index) => (
                 <DepartmentCard key={index} {...dept} />
@@ -157,7 +161,10 @@ function Analytics() {
           </h2>
           <div className="space-y-3">
             {isLoading ? (
-              <p className="text-slate-400">Loading...</p>
+              <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+                <Loader2 className="h-6 w-6 animate-spin mb-2" />
+                <p className="text-sm">Loading courses...</p>
+              </div>
             ) : (
               analyticsData.popularCourses.map((course, index) => (
                 <CourseCard key={index} {...course} />
@@ -173,7 +180,10 @@ function Analytics() {
           </h2>
           <div className="space-y-3">
             {isLoading ? (
-              <p className="text-slate-400">Loading...</p>
+              <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+                <Loader2 className="h-6 w-6 animate-spin mb-2" />
+                <p className="text-sm">Loading activity...</p>
+              </div>
             ) : (
               analyticsData.recentActivity.map((activity, index) => (
                 <ActivityCard key={index} {...activity} />

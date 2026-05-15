@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  clearTeacherSession,
-  createTeacherAccount,
   readTeacherSession,
   uploadTeacherResults,
 } from "../lib/teacherAuthApi";
 import { SAMPLE_HEADERS, SAMPLE_ROW, RESERVED_HEADERS,REQUIRED_HEADERS } from "../config/teacherMockData";
-import SideBar from "../components/SideBar";
 
 function AddResult() {
   const navigate = useNavigate();
@@ -15,13 +12,6 @@ function AddResult() {
   const [headers, setHeaders] = useState([]);
   const [rows, setRows] = useState([]);
   const [teacherSession, setTeacherSession] = useState(() => readTeacherSession());
-  const [showRegisterTeacher, setShowRegisterTeacher] = useState(false);
-  const [teacherEmail, setTeacherEmail] = useState("");
-  const [teacherPassword, setTeacherPassword] = useState("");
-  const [teacherRole, setTeacherRole] = useState("TEACHER");
-  const [teacherCreateStatus, setTeacherCreateStatus] = useState("idle");
-  const [teacherCreateError, setTeacherCreateError] = useState("");
-  const [teacherCreateSuccess, setTeacherCreateSuccess] = useState("");
   const [defaultCourse, setDefaultCourse] = useState("");
   const [defaultYear, setDefaultYear] = useState("");
   const [error, setError] = useState("");
@@ -63,7 +53,6 @@ function AddResult() {
     Boolean(resolvedCourse) &&
     Boolean(resolvedYear) &&
     Boolean(teacherSession?.token);
-  const isAdmin = teacherSession?.user?.role === "ADMIN";
 
   useEffect(() => {
     const session = readTeacherSession();
@@ -209,52 +198,6 @@ function AddResult() {
     URL.revokeObjectURL(url);
   }
 
-  function handleLogout() {
-    clearTeacherSession();
-    navigate("/teachers/login");
-  }
-
-  async function handleCreateTeacher(event) {
-    event.preventDefault();
-
-    if (!teacherSession?.token) {
-      setTeacherCreateStatus("error");
-      setTeacherCreateError("Login again to continue.");
-      setTeacherCreateSuccess("");
-      return;
-    }
-
-    setTeacherCreateStatus("loading");
-    setTeacherCreateError("");
-    setTeacherCreateSuccess("");
-
-    try {
-      const result = await createTeacherAccount({
-        token: teacherSession.token,
-        payload: {
-          email: teacherEmail,
-          password: teacherPassword,
-          role: teacherRole,
-        },
-      });
-
-      setTeacherCreateStatus("success");
-      setTeacherCreateError("");
-      setTeacherCreateSuccess(
-        `${result?.user?.email || teacherEmail} created as ${result?.user?.role || teacherRole}.`,
-      );
-      setTeacherEmail("");
-      setTeacherPassword("");
-      setTeacherRole("TEACHER");
-    } catch (createError) {
-      setTeacherCreateStatus("error");
-      setTeacherCreateError(
-        createError.message || "Unable to create teacher account.",
-      );
-      setTeacherCreateSuccess("");
-    }
-  }
-
   return (
     <main >
 
@@ -292,22 +235,6 @@ function AddResult() {
               >
                 Download Sample CSV
               </button>
-              {isAdmin ? (
-                <button
-                  className="min-h-12 rounded-full border border-white/12 bg-white/6 px-5 py-3 font-semibold text-slate-100 transition duration-200 ease-out hover:-translate-y-px hover:border-emerald-400/45 hover:bg-emerald-400/10"
-                  type="button"
-                  onClick={() => setShowRegisterTeacher(true)}
-                >
-                  Register Teacher
-                </button>
-              ) : null}
-              <button
-                className="min-h-12 rounded-full border border-white/12 bg-white/6 px-5 py-3 font-semibold text-slate-100 transition duration-200 ease-out hover:-translate-y-px hover:border-rose-400/45 hover:bg-rose-400/10"
-                type="button"
-                onClick={handleLogout}
-              >
-                Logout
-              </button>
             </div>
           </header>
 
@@ -319,10 +246,6 @@ function AddResult() {
             <h2 className="mt-2 font-serif text-3xl text-slate-50">
               Add Results File
             </h2>
-            <p className="mt-3 leading-7 text-slate-300">
-              The page reads the CSV first, preserves the original headers, and
-              sends <code className="rounded bg-white/8 px-1.5 py-0.5 text-slate-100">{"{ course, year, rows }"}</code> as JSON to the backend.
-            </p>
 
             <label className="mt-6 block cursor-pointer rounded-[28px] border border-dashed border-sky-400/35 bg-sky-400/8 p-7 text-center transition hover:border-sky-300/50 hover:bg-sky-400/12">
               <span className="block text-sm uppercase tracking-[0.16em] text-sky-200">
@@ -343,16 +266,6 @@ function AddResult() {
             </label>
 
             <div className="mt-6 grid gap-3">
-              <div className="rounded-[22px] border border-white/8 bg-white/5 p-4">
-                <span className="text-sm text-slate-400">Logged in as</span>
-                <strong className="mt-2 block text-base text-slate-50">
-                  {teacherSession?.user?.email || "Teacher session not found"}
-                </strong>
-                <span className="mt-1 block text-xs uppercase tracking-[0.16em] text-slate-400">
-                  {teacherSession?.user?.role || "No role"}
-                </span>
-              </div>
-
               <div className="rounded-[22px] border border-white/8 bg-white/5 p-4">
                 <span className="text-sm text-slate-400">Current file</span>
                 <strong className="mt-2 block text-base text-slate-50">
@@ -602,102 +515,7 @@ function AddResult() {
           </div>
         </section>
         </div>
-      {isAdmin && showRegisterTeacher ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm">
-          <div className="absolute inset-0" onClick={() => setShowRegisterTeacher(false)} />
-          <section className="relative w-full max-w-3xl rounded-[30px] border border-amber-50/10 bg-slate-950/95 p-6 shadow-[0_28px_90px_rgba(3,7,18,0.5)] backdrop-blur-[18px]">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p className="text-[0.72rem] uppercase tracking-[0.16em] text-slate-400">
-                  Admin Actions
-                </p>
-                <h2 className="mt-2 font-serif text-3xl text-slate-50">
-                  Register Teacher
-                </h2>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                  Create new teacher or admin accounts without leaving the dashboard.
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="rounded-full bg-emerald-400/15 px-4 py-2 text-xs font-medium tracking-[0.16em] text-emerald-100">
-                  Admin Only
-                </span>
-                <button
-                  className="rounded-full border border-white/12 bg-white/6 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-rose-400/45 hover:bg-rose-400/10"
-                  type="button"
-                  onClick={() => setShowRegisterTeacher(false)}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
 
-            <form className="mt-6 grid gap-4 md:grid-cols-2" onSubmit={handleCreateTeacher}>
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-slate-200">
-                  Teacher Email
-                </span>
-                <input
-                  className="min-h-14 rounded-[18px] border border-white/10 bg-slate-950/70 px-4 text-slate-50 outline-none transition duration-200 ease-out placeholder:text-slate-500 focus:-translate-y-px focus:border-sky-400/80 focus:shadow-[0_0_0_4px_rgba(56,189,248,0.12)]"
-                  type="email"
-                  placeholder="teacher@school.edu"
-                  value={teacherEmail}
-                  onChange={(event) => setTeacherEmail(event.target.value)}
-                />
-              </label>
-
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-slate-200">
-                  Temporary Password
-                </span>
-                <input
-                  className="min-h-14 rounded-[18px] border border-white/10 bg-slate-950/70 px-4 text-slate-50 outline-none transition duration-200 ease-out placeholder:text-slate-500 focus:-translate-y-px focus:border-sky-400/80 focus:shadow-[0_0_0_4px_rgba(56,189,248,0.12)]"
-                  type="password"
-                  placeholder="Create a password"
-                  value={teacherPassword}
-                  onChange={(event) => setTeacherPassword(event.target.value)}
-                />
-              </label>
-
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-slate-200">
-                  Role
-                </span>
-                <select
-                  className="min-h-14 rounded-[18px] border border-white/10 bg-slate-950/70 px-4 text-slate-50 outline-none transition duration-200 ease-out focus:-translate-y-px focus:border-sky-400/80 focus:shadow-[0_0_0_4px_rgba(56,189,248,0.12)]"
-                  value={teacherRole}
-                  onChange={(event) => setTeacherRole(event.target.value)}
-                >
-                  <option value="TEACHER">Teacher</option>
-                  <option value="ADMIN">Admin</option>
-                </select>
-              </label>
-
-              <div className="grid content-end">
-                <button
-                  className="min-h-14 rounded-[18px] bg-linear-to-r from-emerald-300 via-emerald-400 to-sky-400 px-6 font-bold text-slate-950 shadow-[0_18px_38px_rgba(52,211,153,0.2)] transition duration-200 ease-out hover:-translate-y-px hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
-                  type="submit"
-                  disabled={teacherCreateStatus === "loading"}
-                >
-                  {teacherCreateStatus === "loading" ? "Creating..." : "Create Account"}
-                </button>
-              </div>
-            </form>
-
-            {teacherCreateError ? (
-              <div className="mt-5 rounded-[22px] border border-rose-400/30 bg-rose-400/10 p-4 text-sm leading-6 text-rose-100">
-                {teacherCreateError}
-              </div>
-            ) : null}
-
-            {teacherCreateSuccess ? (
-              <div className="mt-5 rounded-[22px] border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm leading-6 text-emerald-100">
-                {teacherCreateSuccess}
-              </div>
-            ) : null}
-          </section>
-        </div>
-      ) : null}
     </main>
   );
 }

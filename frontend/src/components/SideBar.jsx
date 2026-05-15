@@ -1,19 +1,27 @@
-import { BookOpen, FilePlus, Home, Settings2, UserPlus, Users } from "lucide-react";
+import { BookOpen, FilePlus, Home, LogOut, Settings2, UserPlus, Users } from "lucide-react";
 import logo from "../assets/logo.png";
+import { useNavigate } from "react-router-dom";
+import {clearTeacherSession} from "../lib/teacherAuthApi";
 
 function SideBar({ teacherSession, onRouteChange, currentRoute }) {
+  const navigate = useNavigate();
   const isAdmin = teacherSession?.user?.role === "ADMIN";
 
   const getButtonClasses = (route) => {
     const baseClasses = "flex w-full items-center gap-2 rounded-xl px-4 py-2 text-left text-sm font-semibold transition-colors";
     const activeClasses = currentRoute === route
-      ? "bg-amber-400/20 text-amber-100 border border-amber-400/30"
-      : "text-amber-200 hover:bg-white/10";
+      ? "bg-white/15 text-white border border-white/20"
+      : "text-slate-300 hover:bg-white/10 hover:text-white";
     return `${baseClasses} ${activeClasses}`;
   };
 
+  function handleLogout() {
+    clearTeacherSession();
+    navigate("/teachers/login");
+  }
+
   return (
-    <aside className="w-72 shrink-0 border-b border-white/8 bg-slate-950/75 p-6 backdrop-blur-xl lg:border-b-0 lg:border-r lg:max-h-screen lg:overflow-y-auto">
+    <aside className="flex h-screen w-72 flex-col border-b border-white/8 bg-slate-950/75 p-6 backdrop-blur-xl lg:border-b-0 lg:border-r lg:overflow-y-auto">
       <div className="mb-8 flex items-center gap-3">
         <div className="h-11 w-11 rounded-xl bg-linear-to-br from-amber-400 to-fuchsia-500">
           <img src={logo} alt="Logo" className="h-full w-full object-contain" />
@@ -26,7 +34,7 @@ function SideBar({ teacherSession, onRouteChange, currentRoute }) {
         </div>
       </div>
 
-      <nav className="space-y-2">
+      <nav className="flex flex-1 flex-col space-y-2">
         <button
           className={getButtonClasses("home")}
           onClick={() => onRouteChange?.("home")}
@@ -73,7 +81,17 @@ function SideBar({ teacherSession, onRouteChange, currentRoute }) {
           <Settings2 className="h-4 w-4" />
           Settings
         </button>
-        
+
+        <div className="mt-auto pt-10">
+          <button
+            className="flex w-full items-center gap-3 rounded-xl border border-white/12 bg-white/5 px-4 py-3 font-semibold text-slate-100 transition-all duration-200 hover:border-rose-400/40 hover:bg-rose-400/10 hover:text-rose-100"
+            type="button"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </button>
+        </div>
       </nav>
     </aside>
   );
